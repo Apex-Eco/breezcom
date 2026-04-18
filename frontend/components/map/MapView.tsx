@@ -6,6 +6,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { MapSensor } from '@/hooks/useSensorsOnMap';
 import type { MapStyleValue } from './types';
+import { getAqiColor } from '@/lib/map-aqi';
 
 // Fix for default marker icons (only on client)
 if (typeof window !== 'undefined') {
@@ -18,6 +19,14 @@ if (typeof window !== 'undefined') {
 }
 
 const ALMATY_CENTER: [number, number] = [43.2565, 76.9285];
+
+const AQI_LEGEND_BANDS = [
+  { label: '0-50', color: getAqiColor(50) },
+  { label: '51-100', color: getAqiColor(100) },
+  { label: '101-150', color: getAqiColor(150) },
+  { label: '151-200', color: getAqiColor(200) },
+  { label: '201+', color: getAqiColor(201) },
+];
 
 const TILE_LAYERS: Record<
   MapStyleValue,
@@ -84,7 +93,7 @@ export function MapView({
   const tiles = TILE_LAYERS[mapStyle];
 
   return (
-    <div className={`h-full w-full ${className}`} role="application" aria-label="Air quality map">
+    <div className={`h-full w-full relative ${className}`} role="application" aria-label="Air quality map">
       <MapContainer
         center={ALMATY_CENTER}
         zoom={12}
@@ -101,6 +110,24 @@ export function MapView({
         <FitToSensors sensors={sensors} />
         {children}
       </MapContainer>
+
+      <div className="absolute bottom-4 left-4 z-[500] pointer-events-none">
+        <div className="rounded-xl border border-white/20 bg-black/70 px-3 py-2 backdrop-blur">
+          <div className="mb-1 text-[10px] font-bold uppercase tracking-wide text-white/90">AQI</div>
+          <div className="space-y-1">
+            {AQI_LEGEND_BANDS.map((band) => (
+              <div key={band.label} className="flex items-center gap-2 text-[10px] text-white/90">
+                <span
+                  className="inline-block h-2.5 w-2.5 rounded-full border border-black/40"
+                  style={{ backgroundColor: band.color }}
+                  aria-hidden
+                />
+                <span>{band.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

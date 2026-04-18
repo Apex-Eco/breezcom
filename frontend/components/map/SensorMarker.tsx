@@ -5,39 +5,72 @@ import { Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import { useTranslations } from 'next-intl';
 import type { MapSensor } from '@/hooks/useSensorsOnMap';
-import { getAqiCategory } from '@/lib/map-aqi';
+import { getAqiCategory, getAqiColor } from '@/lib/map-aqi';
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+function getMarkerDeviceLabel(sensor: MapSensor): string {
+  const candidates = [
+    sensor.device_name,
+    sensor.device_id,
+    sensor.name,
+    sensor.label,
+    sensor.site,
+  ];
+  for (const item of candidates) {
+    if (typeof item === 'string' && item.trim()) {
+      return item.trim();
+    }
+  }
+  return `Sensor #${sensor.markerIndex ?? 1}`;
+}
 
 function createMarkerIcon(sensor: MapSensor): L.DivIcon {
   const aqi = sensor.aqi;
+  const isDemo = Boolean(sensor.isDemo);
   const isPurchased = sensor.isPurchased;
   const category = getAqiCategory(aqi);
-  const color = isPurchased ? '#00d8ff' : category.color;
-  const textColor = isPurchased ? '#000000' : category.textColor;
-  const size = category.isDangerous ? 50 : isPurchased ? 48 : 42;
+  const color = getAqiColor(aqi);
+  const textColor = category.textColor;
+  const size = category.isDangerous ? 54 : 48;
+  const label = escapeHtml(getMarkerDeviceLabel(sensor));
   const classes = [
     'marker-aqi-bubble',
-    !isPurchased && category.isDangerous ? 'marker-glow marker-danger-pulse' : 'marker-glow',
+    category.isDangerous ? 'marker-glow marker-danger-pulse' : 'marker-glow',
     isPurchased && 'marker-purchased',
+    isDemo && 'marker-demo',
   ].filter(Boolean) as string[];
 
   const html = `
-    <div
-      class="${classes.join(' ')}"
-      style="--aqi-color: ${color}; --aqi-size: ${size}px; color: ${textColor};"
-      role="img"
-      aria-label="Sensor AQI ${aqi}, ${category.label}"
-    >
-      ${category.isDangerous ? '<span class="marker-badge-danger" aria-hidden></span>' : ''}
-      ${isPurchased ? '<span class="marker-badge-purchased" aria-hidden">🛒</span>' : ''}
-      <span class="marker-value">${aqi}</span>
+    <div class="marker-aqi-wrap" role="img" aria-label="Sensor AQI ${aqi}, ${category.label}, ${label}">
+      <div
+        class="${classes.join(' ')}"
+        style="--aqi-color: ${color}; --aqi-size: ${size}px; --aqi-border-color: ${color}; color: ${textColor};"
+      >
+        ${category.isDangerous ? '<span class="marker-badge-danger" aria-hidden></span>' : ''}
+        ${isPurchased ? '<span class="marker-badge-purchased" aria-hidden>🛒</span>' : ''}
+        ${isDemo ? '<span class="marker-badge-demo" aria-hidden>DEMO</span>' : ''}
+        <span class="marker-value">${aqi}</span>
+      </div>
+      <span class="marker-device-label">${label}</span>
     </div>
   `;
+
+  const iconWidth = Math.max(size + 24, 86);
+  const iconHeight = size + 24;
 
   return L.divIcon({
     className: 'custom-marker',
     html,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
+    iconSize: [iconWidth, iconHeight],
+    iconAnchor: [iconWidth / 2, size / 2],
   });
 }
 

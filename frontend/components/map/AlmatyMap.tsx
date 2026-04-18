@@ -58,7 +58,7 @@ export default function AlmatyMap() {
           ) : (
             <MapViewDynamic sensors={sensors} mapStyle="standard">
               {sensors.map((sensor) => (
-                <SensorMarker key={sensor.id} sensor={sensor} onClick={setSelectedSensor} />
+                <SensorMarker key={`${sensor.id}-${sensor.aqi}`} sensor={sensor} onClick={setSelectedSensor} />
               ))}
             </MapViewDynamic>
           )}

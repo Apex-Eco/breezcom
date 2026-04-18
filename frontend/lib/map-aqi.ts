@@ -6,8 +6,9 @@
 export type AqiCategoryKey =
   | 'good'
   | 'moderate'
+  | 'unhealthySensitive'
   | 'unhealthy'
-  | 'critical';
+  | 'veryUnhealthy';
 
 export type SensorFilterValue = 'all' | AqiCategoryKey;
 
@@ -42,20 +43,28 @@ const CATEGORIES: Record<AqiCategoryKey, Omit<AqiCategory, 'key'>> = {
     bgClass: 'bg-[#ffff00]',
     isDangerous: false,
   },
-  unhealthy: {
-    label: 'Unhealthy',
+  unhealthySensitive: {
+    label: 'Unhealthy for Sensitive Groups',
     color: '#ff7e00',
     textColor: '#000000',
     ringClass: 'ring-orange-500/60',
     bgClass: 'bg-[#ff7e00]',
     isDangerous: false,
   },
-  critical: {
-    label: 'Critical',
-    color: '#7e0023',
+  unhealthy: {
+    label: 'Unhealthy',
+    color: '#ff0000',
     textColor: '#ffffff',
     ringClass: 'ring-red-600/70',
-    bgClass: 'bg-[#7e0023]',
+    bgClass: 'bg-[#ff0000]',
+    isDangerous: true,
+  },
+  veryUnhealthy: {
+    label: 'Very Unhealthy',
+    color: '#8f3f97',
+    textColor: '#ffffff',
+    ringClass: 'ring-fuchsia-700/70',
+    bgClass: 'bg-[#8f3f97]',
     isDangerous: true,
   },
 };
@@ -69,9 +78,11 @@ export function getAqiCategory(aqi: number): AqiCategory {
       ? 'good'
       : aqi <= 100
         ? 'moderate'
-        : aqi <= 200
+        : aqi <= 150
+          ? 'unhealthySensitive'
+          : aqi <= 200
           ? 'unhealthy'
-          : 'critical';
+          : 'veryUnhealthy';
   return { key, ...CATEGORIES[key] };
 }
 
@@ -98,6 +109,7 @@ export const SENSOR_FILTER_OPTIONS: { value: SensorFilterValue; label: string }[
   { value: 'all', label: 'All' },
   { value: 'good', label: 'Good' },
   { value: 'moderate', label: 'Moderate' },
+  { value: 'unhealthySensitive', label: 'Unhealthy for Sensitive Groups' },
   { value: 'unhealthy', label: 'Unhealthy' },
-  { value: 'critical', label: 'Critical' },
+  { value: 'veryUnhealthy', label: 'Very Unhealthy' },
 ];

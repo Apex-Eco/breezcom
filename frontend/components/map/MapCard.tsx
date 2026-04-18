@@ -42,7 +42,16 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
 
   const filterLabel = (value: SensorFilterValue) => {
     if (value === 'all') return t('filter.all');
-    const key = value === 'good' ? 'good' : value === 'moderate' ? 'moderate' : value === 'unhealthy' ? 'unhealthy' : 'hazardous';
+    const key =
+      value === 'good'
+        ? 'good'
+        : value === 'moderate'
+          ? 'moderate'
+          : value === 'unhealthySensitive'
+            ? 'unhealthySensitive'
+            : value === 'unhealthy'
+              ? 'unhealthy'
+              : 'veryUnhealthy';
     return t(`aqi.${key}`);
   };
 
@@ -50,6 +59,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
     () => sensors.filter((s) => sensorMatchesFilter(s.aqi, filter)),
     [sensors, filter]
   );
+  const demoSensor = useMemo(() => sensors.find((s) => s.isDemo), [sensors]);
   const activeCount = filteredSensors.length;
 
   return (
@@ -171,8 +181,11 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
               mapStyle={mapStyle}
             >
               {filteredSensors.map((sensor) => (
-                <SensorMarker key={sensor.id} sensor={sensor} onClick={onSensorClick} />
+                <SensorMarker key={`${sensor.id}-${sensor.aqi}`} sensor={sensor} onClick={onSensorClick} />
               ))}
+              {demoSensor && !filteredSensors.some((s) => s.id === demoSensor.id) && (
+                <SensorMarker key={`demo-${demoSensor.id}-${demoSensor.aqi}`} sensor={demoSensor} onClick={onSensorClick} />
+              )}
             </MapViewDynamic>
 
             {/* Empty-state overlay when user has no sensors */}

@@ -16,6 +16,12 @@ export interface MapSensor {
   lng: number;
   aqi: number;
   isPurchased: boolean;
+  isDemo?: boolean;
+  markerIndex?: number;
+  device_name?: string;
+  device_id?: string;
+  label?: string;
+  site?: string;
   name?: string;
   city?: string;
   state?: string;
@@ -37,6 +43,43 @@ export interface UseSensorsOnMapResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
+}
+
+const FIXED_MARKER_COORDS: Array<[number, number]> = [
+  [43.216124, 76.880444],
+  [43.21825, 76.920739],
+  [43.233797, 76.761204],
+  [43.223431, 76.901261],
+  [43.245644, 76.889126],
+  [43.264688, 76.918148],
+  [43.246987, 76.958445],
+  [43.254494, 76.953902],
+  [43.369441, 77.310747],
+  [43.225782, 76.930466],
+  [43.230413, 76.910433],
+  [43.256511, 76.826015],
+  [43.216466, 76.776729],
+  [43.344326, 76.914315],
+  [43.21086, 76.861406],
+  [43.229065, 76.933489],
+  [43.22676, 76.910461],
+  [43.23259, 76.88285],
+  [43.224489, 76.923981],
+  [43.236987, 76.934981],
+];
+
+function applyFixedMarkerPositions(sensors: MapSensor[]): MapSensor[] {
+  const ordered = [...sensors].sort((a, b) => a.id.localeCompare(b.id));
+  return ordered.map((sensor, index) => {
+    const [lat, lng] = FIXED_MARKER_COORDS[index % FIXED_MARKER_COORDS.length];
+    return {
+      ...sensor,
+      lat,
+      lng,
+      markerIndex: index + 1,
+      isDemo: index === 0,
+    };
+  });
 }
 
 /**
@@ -76,6 +119,10 @@ function purchasedSensorToMapSensor(s: any, index: number): MapSensor | null {
     aqi: s?.aqi ?? 0,
     isPurchased: true,
     name: s?.name ?? 'Платный датчик',
+    device_name: s?.device_name,
+    device_id: s?.device_id,
+    label: s?.label,
+    site: s?.site,
     city: s?.city,
     country: s?.country,
     description: s?.description,
@@ -158,6 +205,10 @@ export function useSensorsOnMap(
                 aqi: item.value || 0,
                 isPurchased: false,
                 name: item.site || item.sensorId || 'Sensor',
+                device_name: item.device_name,
+                device_id: item.device_id || item.sensorId,
+                label: item.label,
+                site: item.site,
                 city: 'Almaty',
                 country: 'KZ',
                 timestamp: item.timestamp,
@@ -188,7 +239,7 @@ export function useSensorsOnMap(
         .map((sensor, i) => purchasedSensorToMapSensor(sensor, i))
         .filter((sensor): sensor is MapSensor => sensor !== null);
 
-      const mergedSensors = [...purchasedSensors, ...mapDataSensors];
+      const mergedSensors = applyFixedMarkerPositions([...purchasedSensors, ...mapDataSensors]);
 
       console.log('[SensorsOnMap] Processed sensors:', mergedSensors.length, mergedSensors);
 
