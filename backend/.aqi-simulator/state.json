@@ -1,0 +1,13 @@
+{
+  "cursor": 6,
+  "tick": 2,
+  "interval_seconds": 60,
+  "sensors_per_tick": 3,
+  "sensors_total": 20,
+  "last_updated": 1776516972,
+  "last_updated_sensor_ids": [
+    "69e37f2e92732584156e9281",
+    "69e37f2e92732584156e9287",
+    "69e37f2e92732584156e9288"
+  ]
+}
