@@ -26,10 +26,19 @@ export interface AqiCategory {
   isDangerous: boolean;
 }
 
+// [aqi-color] Fixed AQI palette override for marker fills and legend bands.
+const AQI_MARKER_COLORS = {
+  good: '#00e400',
+  moderate: '#ffff00',
+  unhealthySensitive: '#ff7e00',
+  unhealthy: '#ff0000',
+  veryUnhealthy: '#8f3f97',
+} as const;
+
 const CATEGORIES: Record<AqiCategoryKey, Omit<AqiCategory, 'key'>> = {
   good: {
     label: 'Good',
-    color: '#00e400',
+    color: AQI_MARKER_COLORS.good,
     textColor: '#000000',
     ringClass: 'ring-green-500/60',
     bgClass: 'bg-[#00e400]',
@@ -37,7 +46,7 @@ const CATEGORIES: Record<AqiCategoryKey, Omit<AqiCategory, 'key'>> = {
   },
   moderate: {
     label: 'Moderate',
-    color: '#ffff00',
+    color: AQI_MARKER_COLORS.moderate,
     textColor: '#000000',
     ringClass: 'ring-yellow-400/60',
     bgClass: 'bg-[#ffff00]',
@@ -45,7 +54,7 @@ const CATEGORIES: Record<AqiCategoryKey, Omit<AqiCategory, 'key'>> = {
   },
   unhealthySensitive: {
     label: 'Unhealthy for Sensitive Groups',
-    color: '#ff7e00',
+    color: AQI_MARKER_COLORS.unhealthySensitive,
     textColor: '#000000',
     ringClass: 'ring-orange-500/60',
     bgClass: 'bg-[#ff7e00]',
@@ -53,7 +62,7 @@ const CATEGORIES: Record<AqiCategoryKey, Omit<AqiCategory, 'key'>> = {
   },
   unhealthy: {
     label: 'Unhealthy',
-    color: '#ff0000',
+    color: AQI_MARKER_COLORS.unhealthy,
     textColor: '#ffffff',
     ringClass: 'ring-red-600/70',
     bgClass: 'bg-[#ff0000]',
@@ -61,7 +70,7 @@ const CATEGORIES: Record<AqiCategoryKey, Omit<AqiCategory, 'key'>> = {
   },
   veryUnhealthy: {
     label: 'Very Unhealthy',
-    color: '#8f3f97',
+    color: AQI_MARKER_COLORS.veryUnhealthy,
     textColor: '#ffffff',
     ringClass: 'ring-fuchsia-700/70',
     bgClass: 'bg-[#8f3f97]',

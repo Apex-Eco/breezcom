@@ -394,26 +394,37 @@ body::before {
   transform: rotateY(0) translateZ(0);
 }
 
+/* [restyle] */
 .leaflet-container {
   height: 100%;
   width: 100%;
   z-index: 0;
-  font-family: inherit;
-  background: #1a1a1a !important;
+  font-family: 'Inter Variable', 'SF Pro Display', -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif;
+  font-feature-settings: 'cv01', 'ss03';
+  background: #08090a !important;
 }
 
 .leaflet-tile-container img {
-  filter: brightness(0.6) invert(1) hue-rotate(180deg) contrast(0.8) brightness(0.7);
+  filter: saturate(0.86) contrast(0.9) brightness(0.82);
+}
+
+.leaflet-control-zoom {
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+  box-shadow: rgba(0, 0, 0, 0.2) 0px 0px 0px 1px, rgba(0, 0, 0, 0.4) 0px 2px 4px;
 }
 
 .leaflet-control-zoom a {
-  background-color: #2a2a2a !important;
-  color: #ffffff !important;
-  border: 1px solid #3a3a3a !important;
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  color: #d0d6e0 !important;
+  border: none !important;
+  font-weight: 510;
 }
 
 .leaflet-control-zoom a:hover {
-  background-color: #3a3a3a !important;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  color: #f7f8f8 !important;
 }
 
 .custom-marker {
@@ -421,41 +432,39 @@ body::before {
   border: none !important;
 }
 
-/* AQI marker bubble: use CSS vars (--aqi-color, --aqi-size) set by JS */
+/* [restyle] AQI marker bubble: use CSS vars (--aqi-color, --aqi-size) set by JS */
 .marker-aqi-wrap {
   width: max-content;
   min-width: 86px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .marker-aqi-bubble {
   width: var(--aqi-size, 42px);
   height: var(--aqi-size, 42px);
   border-radius: 50%;
-  border: 2px solid color-mix(in srgb, var(--aqi-border-color, var(--aqi-color)) 78%, #0a0a0a);
+  border: 2px solid color-mix(in srgb, var(--aqi-border-color, var(--aqi-color)) 85%, #0f1011);
   display: flex;
   align-items: center;
   justify-content: center;
   color: inherit;
-  font-weight: 900;
+  font-weight: 590;
   font-size: 14px;
   cursor: pointer;
   position: relative;
   background: var(--aqi-color);
   box-shadow:
-    0 0 16px color-mix(in srgb, var(--aqi-color) 65%, transparent),
-    0 0 40px color-mix(in srgb, var(--aqi-color) 30%, transparent),
-    0 4px 12px rgba(0, 0, 0, 0.6),
-    inset 0 0 0 1px color-mix(in srgb, var(--aqi-color) 45%, #ffffff),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    inset 0 0 0 1px color-mix(in srgb, var(--aqi-color) 35%, #ffffff);
 }
 
 .marker-value {
   font-size: 15px;
-  font-weight: 900;
+  font-weight: 590;
   line-height: 1;
 }
 
@@ -463,13 +472,14 @@ body::before {
   max-width: 96px;
   text-align: center;
   font-size: 10px;
-  line-height: 1.1;
-  padding: 2px 6px;
+  line-height: 1.5;
+  letter-spacing: -0.13px;
+  padding: 2px 8px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(8, 8, 8, 0.75);
-  color: #f5f5f5;
-  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 16, 17, 0.88);
+  color: #8a8f98;
+  font-weight: 510;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -481,27 +491,36 @@ body::before {
   inset: -6px;
   border-radius: 50%;
   background: var(--aqi-color);
-  opacity: 0.3;
-  filter: blur(8px);
+  opacity: 0.18;
+  filter: blur(10px);
   z-index: -1;
 }
 .marker-aqi-bubble.marker-danger-pulse {
-  animation: marker-danger-pulse 1.5s ease-in-out infinite;
+  animation: marker-danger-pulse 2.2s ease-in-out infinite;
 }
 .marker-aqi-bubble.marker-danger-pulse.marker-glow::before {
-  opacity: 0.5;
+  opacity: 0.3;
   filter: blur(12px);
 }
 @keyframes marker-danger-pulse {
-  0%, 100% { box-shadow: 0 0 20px color-mix(in srgb, var(--aqi-color) 60%, transparent), 0 0 40px color-mix(in srgb, var(--aqi-color) 30%, transparent), 0 4px 12px rgba(0, 0, 0, 0.6); }
-  50% { box-shadow: 0 0 30px color-mix(in srgb, var(--aqi-color) 80%, transparent), 0 0 60px color-mix(in srgb, var(--aqi-color) 50%, transparent), 0 4px 12px rgba(0, 0, 0, 0.6); }
+  0%, 100% {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.45),
+      0 0 20px color-mix(in srgb, var(--aqi-color) 35%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.2),
+      0 2px 4px rgba(0, 0, 0, 0.45),
+      0 0 30px color-mix(in srgb, var(--aqi-color) 50%, transparent);
+  }
 }
 .marker-aqi-bubble.marker-purchased {
   box-shadow:
-    0 0 18px color-mix(in srgb, var(--aqi-color) 70%, transparent),
-    0 0 30px color-mix(in srgb, var(--aqi-color) 40%, transparent),
-    0 0 0 2px rgba(0, 216, 255, 0.35),
-    0 4px 12px rgba(0, 0, 0, 0.6);
+    0 0 0 1px rgba(0, 0, 0, 0.2),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(113, 112, 255, 0.35);
 }
 
 .marker-aqi-bubble.marker-demo {
@@ -525,9 +544,9 @@ body::before {
   left: -10px;
   width: 20px;
   height: 20px;
-  background: #00d8ff;
+  background: #7170ff;
   border-radius: 50%;
-  border: 2px solid #fff;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -539,27 +558,30 @@ body::before {
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  background: #111827;
-  color: #ffffff;
-  border: 1px dashed color-mix(in srgb, var(--aqi-color) 80%, #ffffff);
+  background: #191a1b;
+  color: #d0d6e0;
+  border: 1px dashed rgba(255, 255, 255, 0.35);
   border-radius: 999px;
   font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.04em;
+  font-weight: 510;
+  letter-spacing: 0.08em;
   padding: 1px 5px;
 }
 
+/* [restyle] */
 .leaflet-popup-content-wrapper {
   border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
-  background: #1a1a1a !important;
-  color: #ffffff !important;
-  border: 1px solid #3a3a3a;
+  box-shadow:
+    rgba(0, 0, 0, 0.2) 0px 0px 0px 1px,
+    rgba(0, 0, 0, 0.4) 0px 2px 4px;
+  background: #191a1b !important;
+  color: #d0d6e0 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .leaflet-popup-tip {
-  background: #1a1a1a !important;
-  border: 1px solid #3a3a3a;
+  background: #191a1b !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-top: none;
   border-left: none;
 }
@@ -568,11 +590,12 @@ body::before {
   margin: 0;
 }
 
+/* [aqi-color] */
 .aqi-good { background-color: #00e400; }
 .aqi-moderate { background-color: #ffff00; }
 .aqi-unhealthy-sensitive { background-color: #ff7e00; }
 .aqi-unhealthy { background-color: #ff0000; }
 .aqi-very-unhealthy { background-color: #8f3f97; }
-.aqi-hazardous { background-color: #7e0023; }
+.aqi-hazardous { background-color: #8f3f97; }
 
 

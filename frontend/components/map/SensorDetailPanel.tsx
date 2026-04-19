@@ -9,10 +9,10 @@ interface SensorDetailPanelProps {
 
 function ParamCard({ label, value, unit, accent }: { label: string; value: string; unit: string; accent?: boolean }) {
   return (
-    <div className={`rounded-xl p-3 text-center border ${accent ? 'bg-green-500/10 border-green-500/30' : 'bg-white/5 border-white/10'}`}>
-      <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{label}</div>
-      <div className="text-xl font-black text-white leading-tight">{value}</div>
-      <div className="text-[10px] text-gray-500">{unit}</div>
+    <div className={`rounded-md border p-3 text-center ${accent ? 'bg-[rgba(255,255,255,0.05)] border-[rgba(255,255,255,0.08)]' : 'bg-[rgba(255,255,255,0.03)] border-[rgba(255,255,255,0.08)]'}`}>
+      <div className="mb-1 text-[10px] uppercase tracking-[0.08em] text-[#62666d]">{label}</div>
+      <div className="text-xl font-[590] leading-tight text-[#f7f8f8]">{value}</div>
+      <div className="text-[10px] text-[#62666d]">{unit}</div>
     </div>
   );
 }
@@ -51,54 +51,62 @@ export function SensorDetailPanel({ sensor }: SensorDetailPanelProps) {
   const temp = params.temp ?? null;
   const hum  = params.hum  ?? null;
 
+  // [restyle]
   return (
-    <div className="glass-strong rounded-3xl border border-green-500/30 overflow-hidden shadow-2xl">
+    <div
+      className="overflow-hidden rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#0f1011]"
+      style={{
+        boxShadow:
+          'rgba(0,0,0,0.2) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 2px 4px',
+        fontFeatureSettings: '"cv01", "ss03"',
+      }}
+    >
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-5 py-4 border-b border-green-500/20">
+      <div className="border-b border-[rgba(255,255,255,0.08)] bg-[#0f1011] px-5 py-4">
         <div className="flex items-center justify-between mb-1">
-          <h3 className="text-lg font-black text-white truncate">{sensor.name || 'Sensor'}</h3>
+          <h3 className="truncate text-lg font-[590] tracking-[-0.24px] text-[#f7f8f8]">{sensor.name || 'Sensor'}</h3>
           <div className="flex items-center gap-1.5">
             {isOnline ? (
               <>
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10b981]" />
                 </span>
-                <span className="text-green-300 text-[10px] font-bold tracking-wider uppercase">Online</span>
+                <span className="text-[10px] font-[510] uppercase tracking-[0.08em] text-[#d0d6e0]">Online</span>
               </>
             ) : (
               <>
                 <span className="relative flex h-2 w-2">
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#62666d]" />
                 </span>
-                <span className="text-yellow-400 text-[10px] font-bold tracking-wider uppercase">Offline</span>
+                <span className="text-[10px] font-[510] uppercase tracking-[0.08em] text-[#8a8f98]">Offline</span>
               </>
             )}
           </div>
         </div>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-[#8a8f98]">
           {sensor.city ?? ''}{sensor.country ? `, ${sensor.country}` : ''}
-          <span className="ml-2 text-gray-600">· {timeAgo}</span>
+          <span className="ml-2 text-[#62666d]">· {timeAgo}</span>
         </p>
       </div>
 
       <div className="p-5 space-y-5">
         {/* AQI */}
         <div
-          className="rounded-2xl p-4 text-center shadow-lg"
+          className="rounded-lg border border-[rgba(255,255,255,0.08)] p-4 text-center"
           style={{ backgroundColor: category.color, color: category.textColor }}
         >
-          <div className="text-5xl font-black mb-1">{aqi}</div>
-          <div className="text-sm font-medium" style={{ opacity: 0.85 }}>{category.label}</div>
+          <div className="mb-1 text-5xl font-[590] leading-none">{aqi}</div>
+          <div className="text-sm font-[510]" style={{ opacity: 0.85 }}>{category.label}</div>
           <div className="text-xs mt-0.5" style={{ opacity: 0.6 }}>AQI (US EPA)</div>
         </div>
 
         {/* Particles */}
         <div>
-          <div className="text-[10px] font-bold text-green-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-            <span className="h-px flex-1 bg-green-500/20" />
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-[510] uppercase tracking-[0.08em] text-[#8a8f98]">
+            <span className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
             Частицы
-            <span className="h-px flex-1 bg-green-500/20" />
+            <span className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <ParamCard label="PM1" value={pm1.toFixed(0)} unit="µg/m³" />
@@ -109,10 +117,10 @@ export function SensorDetailPanel({ sensor }: SensorDetailPanelProps) {
 
         {/* Gases */}
         <div>
-          <div className="text-[10px] font-bold text-cyan-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-            <span className="h-px flex-1 bg-cyan-500/20" />
+          <div className="mb-2 flex items-center gap-2 text-[11px] font-[510] uppercase tracking-[0.08em] text-[#8a8f98]">
+            <span className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
             Газы
-            <span className="h-px flex-1 bg-cyan-500/20" />
+            <span className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
           </div>
           <div className="grid grid-cols-3 gap-2">
             <ParamCard label="CO₂" value={co2.toFixed(0)} unit="ppm" />
@@ -129,22 +137,22 @@ export function SensorDetailPanel({ sensor }: SensorDetailPanelProps) {
         {/* Environment */}
         {(temp != null || hum != null) && (
           <div>
-            <div className="text-[10px] font-bold text-amber-400 mb-2 uppercase tracking-widest flex items-center gap-2">
-              <span className="h-px flex-1 bg-amber-500/20" />
+            <div className="mb-2 flex items-center gap-2 text-[11px] font-[510] uppercase tracking-[0.08em] text-[#8a8f98]">
+              <span className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
               Среда
-              <span className="h-px flex-1 bg-amber-500/20" />
+              <span className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
             </div>
             <div className="grid grid-cols-2 gap-2">
               {temp != null && (
-                <div className="rounded-xl p-3 text-center bg-white/5 border border-white/10">
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Температура</div>
-                  <div className="text-2xl font-black text-white">{Number(temp).toFixed(1)}<span className="text-sm text-gray-400">°C</span></div>
+                <div className="rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-3 text-center">
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.08em] text-[#62666d]">Температура</div>
+                  <div className="text-2xl font-[590] text-[#f7f8f8]">{Number(temp).toFixed(1)}<span className="text-sm text-[#8a8f98]">°C</span></div>
                 </div>
               )}
               {hum != null && (
-                <div className="rounded-xl p-3 text-center bg-white/5 border border-white/10">
-                  <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Влажность</div>
-                  <div className="text-2xl font-black text-white">{Number(hum).toFixed(0)}<span className="text-sm text-gray-400">%</span></div>
+                <div className="rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-3 text-center">
+                  <div className="mb-1 text-[10px] uppercase tracking-[0.08em] text-[#62666d]">Влажность</div>
+                  <div className="text-2xl font-[590] text-[#f7f8f8]">{Number(hum).toFixed(0)}<span className="text-sm text-[#8a8f98]">%</span></div>
                 </div>
               )}
             </div>
@@ -152,7 +160,7 @@ export function SensorDetailPanel({ sensor }: SensorDetailPanelProps) {
         )}
 
         {/* Footer */}
-        <div className="text-center text-[10px] text-gray-600 pt-2 border-t border-white/5">
+        <div className="border-t border-[rgba(255,255,255,0.08)] pt-2 text-center text-[10px] text-[#62666d]">
           {isOnline ? 'Обновляется каждые 5 секунд' : `Последние данные: ${timeAgo}`}
         </div>
       </div>

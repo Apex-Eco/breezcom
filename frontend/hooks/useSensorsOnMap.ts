@@ -6,6 +6,9 @@ import React from 'react';
 import { useEffect, useState, useCallback } from 'react';
 import { airQualityAPI, sensorAPI, AirQualityData } from '@/lib/api';
 
+// [demo-sensor]
+const DEMO_SENSOR = { lat: 43.238, lng: 76.945, aqi: 42, name: "TynysAI Demo" };
+
 /**
  * Unified map sensor type for both air quality API and purchased sensors.
  * Used by MapView to render markers dynamically.
@@ -77,7 +80,6 @@ function applyFixedMarkerPositions(sensors: MapSensor[]): MapSensor[] {
       lat,
       lng,
       markerIndex: index + 1,
-      isDemo: index === 0,
     };
   });
 }
@@ -241,10 +243,23 @@ export function useSensorsOnMap(
 
       const mergedSensors = applyFixedMarkerPositions([...purchasedSensors, ...mapDataSensors]);
 
-      console.log('[SensorsOnMap] Processed sensors:', mergedSensors.length, mergedSensors);
+      // [demo-sensor] Keep demo marker independent from API payloads.
+      const demoSensor: MapSensor = {
+        id: 'demo-tynysai-marker',
+        lat: DEMO_SENSOR.lat,
+        lng: DEMO_SENSOR.lng,
+        aqi: DEMO_SENSOR.aqi,
+        isPurchased: false,
+        isDemo: true,
+        name: DEMO_SENSOR.name,
+        markerIndex: 0,
+      };
+      const mapSensorsWithDemo = [demoSensor, ...mergedSensors];
+
+      console.log('[SensorsOnMap] Processed sensors:', mapSensorsWithDemo.length, mapSensorsWithDemo);
 
       setAllAirQuality([]);
-      setSensors(mergedSensors);
+      setSensors(mapSensorsWithDemo);
       
       if (mergedSensors.length === 0 && (mapDataResponse.length > 0 || purchasedSensors.length > 0)) {
         console.error('[SensorsOnMap] Failed to process sensors from response:', mapDataResponse);

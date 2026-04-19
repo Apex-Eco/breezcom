@@ -62,54 +62,57 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
   const demoSensor = useMemo(() => sensors.find((s) => s.isDemo), [sensors]);
   const activeCount = filteredSensors.length;
 
+  // [restyle]
   return (
     <article
-      className="glass-strong rounded-3xl border border-green-500/30 overflow-hidden shadow-2xl hover-lift relative group scroll-reveal"
+      className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0f1011] scroll-reveal"
+      style={{
+        boxShadow:
+          'rgba(0,0,0,0.2) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 2px 4px',
+        fontFeatureSettings: '"cv01", "ss03"',
+      }}
       aria-labelledby="map-card-title"
       aria-describedby="map-card-desc"
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-green-500/8 via-emerald-500/4 to-cyan-500/8 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-0" />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,255,136,0.1),transparent_50%)] pointer-events-none z-0" />
-
       {/* Header row */}
-      <header className="relative bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-4 sm:px-6 md:px-8 py-4 md:py-5 border-b border-green-500/20 z-10">
+      {/* [restyle] */}
+      <header className="relative z-10 border-b border-white/5 bg-[#0f1011] px-4 py-4 sm:px-6 md:px-8 md:py-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <h2
               id="map-card-title"
-              className="text-lg sm:text-xl md:text-2xl font-black text-white flex items-center gap-2 sm:gap-3 mb-1"
+              className="mb-1 flex items-center gap-2 text-lg font-[510] tracking-[-0.24px] text-[#f7f8f8] sm:text-xl md:text-2xl"
             >
-              <span className="bg-gradient-to-r from-white to-green-100 bg-clip-text text-transparent">
-                {t('title')}
-              </span>
+              <span>{t('title')}</span>
             </h2>
-            <p id="map-card-desc" className="text-xs sm:text-sm text-gray-400 flex items-center gap-2">
-              <span className="font-bold text-green-400 text-base sm:text-lg tabular-nums">
+            <p id="map-card-desc" className="flex items-center gap-2 text-xs text-[#8a8f98] sm:text-sm">
+              <span className="text-base font-[590] tabular-nums text-[#d0d6e0] sm:text-lg">
                 {filter === 'all' ? sensors.length : activeCount}
               </span>
               <span>{t('activeSensor')}{activeCount !== 1 ? 's' : ''}</span>
             </p>
           </div>
           <div
-            className="inline-flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/40 rounded-full backdrop-blur-sm shadow-lg shadow-green-500/20"
+            className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 sm:px-4 sm:py-2"
             role="status"
             aria-live="polite"
             aria-label="Live data"
           >
             <span className="relative flex h-2 w-2" aria-hidden>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10b981]" />
             </span>
-            <span className="text-green-300 text-xs font-bold tracking-wider">{t('live')}</span>
+            <span className="text-xs font-[510] tracking-[0.08em] text-[#d0d6e0]">{t('live')}</span>
           </div>
         </div>
       </header>
 
       {/* Toolbar row */}
-      <div className="relative flex flex-wrap items-center gap-2 sm:gap-4 px-4 sm:px-6 md:px-8 py-3 border-b border-green-500/20 bg-[#0d0d0d]/80 z-10">
+      {/* [restyle] */}
+      <div className="relative z-10 flex flex-wrap items-center gap-2 border-b border-white/5 bg-[rgba(255,255,255,0.02)] px-4 py-3 sm:gap-4 sm:px-6 md:px-8">
         <div className="flex items-center gap-2" role="group" aria-label={t('styleGroup')}>
-          <span className="text-xs text-gray-500 uppercase tracking-wider hidden sm:inline">{t('style')}</span>
-          <div className="flex rounded-lg border border-white/10 overflow-hidden">
+          <span className="hidden text-xs uppercase tracking-[0.08em] text-[#62666d] sm:inline">{t('style')}</span>
+          <div className="flex overflow-hidden rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)]">
             {MAP_STYLE_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
@@ -117,10 +120,10 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
                 onClick={() => setMapStyle(opt.value)}
                 aria-pressed={mapStyle === opt.value}
                 aria-label={`${t('styleGroup')}: ${t(opt.labelKey)}`}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`px-3 py-1.5 text-xs font-[510] transition-colors ${
                   mapStyle === opt.value
-                    ? 'bg-green-500/30 text-green-200 border-green-500/50'
-                    : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300'
+                    ? 'bg-[#5e6ad2] text-white'
+                    : 'bg-transparent text-[#8a8f98] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#d0d6e0]'
                 }`}
               >
                 {t(opt.labelKey)}
@@ -129,12 +132,12 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
           </div>
         </div>
         <div className="flex items-center gap-2" role="group" aria-label={t('filterGroup')}>
-          <span className="text-xs text-gray-500 uppercase tracking-wider hidden sm:inline">{t('filterLabel')}</span>
+          <span className="hidden text-xs uppercase tracking-[0.08em] text-[#62666d] sm:inline">{t('filterLabel')}</span>
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as SensorFilterValue)}
             aria-label={t('filterByAqi')}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-medium text-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:border-green-500/50"
+            className="rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-xs font-[510] text-[#d0d6e0] focus:border-[#7170ff] focus:outline-none"
           >
             {SENSOR_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -147,20 +150,20 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
 
       {/* Main map area */}
       <div
-        className="h-[380px] sm:h-[480px] md:h-[560px] relative z-20 overflow-hidden rounded-b-3xl"
+        className="relative z-20 h-[380px] overflow-hidden rounded-b-xl sm:h-[480px] md:h-[560px]"
         style={{ pointerEvents: 'auto' }}
       >
         {error && (
           <div
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-30 rounded-b-3xl gap-3"
+            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 rounded-b-xl bg-[rgba(0,0,0,0.85)]"
             role="alert"
           >
-            <p className="text-red-400 text-sm px-4 text-center">{error}</p>
+            <p className="px-4 text-center text-sm text-[#d0d6e0]">{error}</p>
             {onRefetch && (
               <button
                 type="button"
                 onClick={onRefetch}
-                className="px-4 py-2 rounded-lg bg-green-500/20 text-green-300 border border-green-500/50 text-sm font-medium hover:bg-green-500/30"
+                className="rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-2 text-sm font-[510] text-[#d0d6e0] hover:bg-[rgba(255,255,255,0.05)]"
               >
                 {t('retry')}
               </button>
@@ -168,9 +171,9 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
           </div>
         )}
         {loading && sensors.length === 0 ? (
-          <div className="h-full flex items-center justify-center bg-[#0f0f0f] rounded-b-3xl" aria-busy="true">
+          <div className="flex h-full items-center justify-center rounded-b-xl bg-[#08090a]" aria-busy="true">
             <div
-              className="animate-spin rounded-full h-12 w-12 border-2 border-green-500/30 border-t-green-500"
+              className="h-12 w-12 animate-spin rounded-full border-2 border-[rgba(255,255,255,0.08)] border-t-[#5e6ad2]"
               aria-hidden
             />
           </div>
@@ -191,8 +194,8 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
             {/* Empty-state overlay when user has no sensors */}
             {!loading && sensors.length === 0 && (
               <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-none">
-                <div className="px-5 py-3 rounded-xl bg-black/70 backdrop-blur-md border border-green-500/30 text-center pointer-events-auto">
-                  <p className="text-sm text-gray-300">
+                <div className="pointer-events-auto rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-5 py-3 text-center backdrop-blur-md">
+                  <p className="text-sm text-[#8a8f98]">
                     {t('emptyState')}
                   </p>
                 </div>
