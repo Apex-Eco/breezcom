@@ -7,71 +7,34 @@ import { useTranslations } from 'next-intl';
 import type { MapSensor } from '@/hooks/useSensorsOnMap';
 import { getAqiCategory, getAqiColor } from '@/lib/map-aqi';
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function getMarkerDeviceLabel(sensor: MapSensor): string {
-  const candidates = [
-    sensor.device_name,
-    sensor.device_id,
-    sensor.name,
-    sensor.label,
-    sensor.site,
-  ];
-  for (const item of candidates) {
-    if (typeof item === 'string' && item.trim()) {
-      return item.trim();
-    }
-  }
-  return `Sensor #${sensor.markerIndex ?? 1}`;
-}
-
 function createMarkerIcon(sensor: MapSensor): L.DivIcon {
   // [aqi-color]
   const aqi = sensor.aqi;
-  const isDemo = Boolean(sensor.isDemo);
-  const isPurchased = sensor.isPurchased;
   const category = getAqiCategory(aqi);
   const color = getAqiColor(aqi);
   const textColor = category.textColor;
   const size = category.isDangerous ? 50 : 46;
-  const label = escapeHtml(getMarkerDeviceLabel(sensor));
-  const classes = [
-    'marker-aqi-bubble',
-    category.isDangerous ? 'marker-glow marker-danger-pulse' : 'marker-glow',
-    isPurchased && 'marker-purchased',
-    isDemo && 'marker-demo',
-  ].filter(Boolean) as string[];
+  const classes = ['marker-aqi-bubble', 'marker-glow'];
 
   const html = `
-    <div class="marker-aqi-wrap" role="img" aria-label="Sensor AQI ${aqi}, ${category.label}, ${label}">
+    <div class="marker-aqi-wrap" role="img" aria-label="Sensor AQI ${aqi}, ${category.label}">
       <div
         class="${classes.join(' ')}"
         style="--aqi-color: ${color}; --aqi-size: ${size}px; --aqi-border-color: ${color}; color: ${textColor};"
       >
-        ${category.isDangerous ? '<span class="marker-badge-danger" aria-hidden></span>' : ''}
-        ${isPurchased ? '<span class="marker-badge-purchased" aria-hidden>🛒</span>' : ''}
-        ${isDemo ? '<span class="marker-badge-demo" aria-hidden>DEMO</span>' : ''}
         <span class="marker-value">${aqi}</span>
       </div>
-      <span class="marker-device-label">${label}</span>
     </div>
   `;
 
-  const iconWidth = Math.max(size + 24, 86);
-  const iconHeight = size + 24;
+  const iconWidth = size + 14;
+  const iconHeight = size + 14;
 
   return L.divIcon({
     className: 'custom-marker',
     html,
     iconSize: [iconWidth, iconHeight],
-    iconAnchor: [iconWidth / 2, size / 2],
+    iconAnchor: [iconWidth / 2, iconHeight / 2],
   });
 }
 
