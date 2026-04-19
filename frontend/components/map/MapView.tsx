@@ -90,6 +90,65 @@ const TILE_LAYERS: Record<
   },
 };
 
+const pluginScriptLoadCache = new Map<string, Promise<void>>();
+
+function loadPluginScript(pluginKey: string, sourceUrl: string): Promise<void> {
+  if (typeof window === 'undefined') {
+    return Promise.resolve();
+  }
+
+  const cacheKey = `${pluginKey}:${sourceUrl}`;
+  const cachedPromise = pluginScriptLoadCache.get(cacheKey);
+  if (cachedPromise) {
+    return cachedPromise;
+  }
+
+  const promise = new Promise<void>((resolve, reject) => {
+    const selector = `script[data-leaflet-plugin="${pluginKey}"][src="${sourceUrl}"]`;
+    const existingScript = document.querySelector<HTMLScriptElement>(selector);
+
+    if (existingScript?.dataset.loaded === 'true') {
+      resolve();
+      return;
+    }
+
+    const script = existingScript ?? document.createElement('script');
+    script.dataset.leafletPlugin = pluginKey;
+    script.src = sourceUrl;
+    script.async = true;
+
+    const cleanup = () => {
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+    };
+
+    const onLoad = () => {
+      script.dataset.loaded = 'true';
+      cleanup();
+      resolve();
+    };
+
+    const onError = () => {
+      cleanup();
+      pluginScriptLoadCache.delete(cacheKey);
+      if (!existingScript) {
+        script.remove();
+      }
+      reject(new Error(`Failed to load ${pluginKey} plugin script`));
+    };
+
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
+
+    if (!existingScript) {
+      document.head.appendChild(script);
+    }
+  });
+
+  pluginScriptLoadCache.set(cacheKey, promise);
+  return promise;
+}
+
 function pm25ToAqi(pm25: number): number {
   const c = Math.max(0, pm25);
   const bands = [
@@ -479,7 +538,21 @@ export function MapView({
 
     const loadPlugins = async () => {
       try {
-        await Promise.all([import('leaflet.heat'), import('leaflet-velocity')]);
+        await Promise.all([
+          loadPluginScript(
+            'leaflet-heat',
+            'https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js'
+          ),
+          loadPluginScript(
+            'leaflet-velocity',
+            'https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.min.js'
+          ).catch(() =>
+            loadPluginScript(
+              'leaflet-velocity',
+              'https://cdn.jsdelivr.net/npm/leaflet-velocity@2.1.4/dist/leaflet-velocity.js'
+            )
+          ),
+        ]);
         if (mounted) setPluginsReady(true);
       } catch (error) {
         console.warn('Failed to load Leaflet plugins', error);
