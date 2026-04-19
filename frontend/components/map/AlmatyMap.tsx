@@ -1,15 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
+import { MapView } from './MapView';
 import { useSensorsOnMap, type MapSensor } from '@/hooks/useSensorsOnMap';
 import { SensorMarker } from './SensorMarker';
 import { SensorDetailPanel } from './SensorDetailPanel';
-
-const MapViewDynamic = dynamic(
-  () => import('./MapView').then((m) => ({ default: m.MapView })),
-  { ssr: false }
-);
 
 export default function AlmatyMap() {
   const { sensors, loading, error, refetch } = useSensorsOnMap({
@@ -20,14 +15,12 @@ export default function AlmatyMap() {
 
   // Auto-select first sensor + refresh selected data
   useEffect(() => {
-    if (sensors.length > 0) {
-      if (!selectedSensor) {
-        setSelectedSensor(sensors[0]);
-      } else {
-        const updated = sensors.find((s) => s.id === selectedSensor.id);
-        if (updated) setSelectedSensor(updated);
-      }
-    }
+    if (sensors.length === 0) return;
+    setSelectedSensor((previous) => {
+      if (!previous) return sensors[0];
+      const updated = sensors.find((sensor) => sensor.id === previous.id);
+      return updated ?? sensors[0];
+    });
   }, [sensors]);
 
   // [restyle]
@@ -57,11 +50,11 @@ export default function AlmatyMap() {
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-[rgba(255,255,255,0.08)] border-t-[#5e6ad2]" />
             </div>
           ) : (
-            <MapViewDynamic sensors={sensors} mapStyle="standard">
+            <MapView sensors={sensors} mapStyle="standard">
               {sensors.map((sensor) => (
                 <SensorMarker key={`${sensor.id}-${sensor.aqi}`} sensor={sensor} onClick={setSelectedSensor} />
               ))}
-            </MapViewDynamic>
+            </MapView>
           )}
 
           {!loading && sensors.length === 0 && !error && (

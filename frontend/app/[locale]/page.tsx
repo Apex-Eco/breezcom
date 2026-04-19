@@ -12,7 +12,23 @@ import Cookies from 'js-cookie';
 import { useTranslations } from 'next-intl';
 
 const MapCard = dynamic(
-  () => import('@/components/map/MapCard').then((m) => ({ default: m.MapCard })),
+  () =>
+    import('@/components/map/MapCard')
+      .then((m) => ({ default: m.MapCard }))
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const isChunkError = /ChunkLoadError|Loading chunk/i.test(message);
+
+        if (typeof window !== 'undefined' && isChunkError) {
+          const retryKey = 'mapcard_chunk_retry_done';
+          if (!sessionStorage.getItem(retryKey)) {
+            sessionStorage.setItem(retryKey, '1');
+            window.location.reload();
+          }
+        }
+
+        throw error;
+      }),
   { ssr: false }
 );
 
@@ -35,14 +51,12 @@ export default function Home() {
 
   // Auto-select first sensor or update selected sensor with fresh data
   useEffect(() => {
-    if (sensors.length > 0) {
-      if (!selectedSensor) {
-        setSelectedSensor(sensors[0]);
-      } else {
-        const updated = sensors.find((s) => s.id === selectedSensor.id);
-        if (updated) setSelectedSensor(updated);
-      }
-    }
+    if (sensors.length === 0) return;
+    setSelectedSensor((previous) => {
+      if (!previous) return sensors[0];
+      const updated = sensors.find((sensor) => sensor.id === previous.id);
+      return updated ?? sensors[0];
+    });
   }, [sensors]);
 
   // Separate fetch for the AirQualityCard sidebar (not rendered on the map)

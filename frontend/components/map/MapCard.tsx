@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import dynamic from 'next/dynamic';
 import { useTranslations } from 'next-intl';
+import { MapView } from './MapView';
 import { SensorMarker } from './SensorMarker';
 import type { MapSensor } from '@/hooks/useSensorsOnMap';
 import {
@@ -11,12 +11,6 @@ import {
   type SensorFilterValue,
 } from '@/lib/map-aqi';
 import type { MapStyleValue } from './types';
-
-const MapViewDynamic = dynamic(
-  () =>
-    import('./MapView').then((m) => ({ default: m.MapView })),
-  { ssr: false }
-);
 
 interface MapCardProps {
   sensors: MapSensor[];
@@ -28,7 +22,7 @@ interface MapCardProps {
 
 export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: MapCardProps) {
   const t = useTranslations('map');
-  const [mapStyle, setMapStyle] = useState<MapStyleValue>('standard');
+  const [mapStyle, setMapStyle] = useState<MapStyleValue>('dark');
   const [filter, setFilter] = useState<SensorFilterValue>('all');
 
   const MAP_STYLE_OPTIONS: { value: MapStyleValue; labelKey: string }[] = useMemo(
@@ -179,7 +173,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
           </div>
         ) : (
           <>
-            <MapViewDynamic
+            <MapView
               sensors={filteredSensors}
               mapStyle={mapStyle}
             >
@@ -189,7 +183,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
               {demoSensor && !filteredSensors.some((s) => s.id === demoSensor.id) && (
                 <SensorMarker key={`demo-${demoSensor.id}-${demoSensor.aqi}`} sensor={demoSensor} onClick={onSensorClick} />
               )}
-            </MapViewDynamic>
+            </MapView>
 
             {/* Empty-state overlay when user has no sensors */}
             {!loading && sensors.length === 0 && (
