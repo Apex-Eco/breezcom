@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react"; // [perf-fix]
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { LatLngTuple } from "leaflet";
 import L from "leaflet";
@@ -12,12 +12,12 @@ import { cn } from "@/lib/utils";
 import type { MapReading } from "@/types/map-reading";
 
 const AQI_BREAKPOINTS = [
-  { limit: 12, color: "#22c55e", label: "Good", range: "0-50", tw: "bg-green-500" },
-  { limit: 35.4, color: "#84cc16", label: "Moderate", range: "51-100", tw: "bg-lime-500" },
-  { limit: 55.4, color: "#eab308", label: "USG", range: "101-150", tw: "bg-amber-500" },
-  { limit: 150.4, color: "#f97316", label: "Unhealthy", range: "151-200", tw: "bg-orange-500" },
-  { limit: 250.4, color: "#ef4444", label: "Very Unhealthy", range: "201-300", tw: "bg-red-500" },
-  { limit: Infinity, color: "#7e22ce", label: "Hazardous", range: "300+", tw: "bg-purple-700" },
+  { limit: 50, color: "#22c55e", label: "Good", range: "0-50", tw: "bg-green-500" }, // [bug-fix]
+  { limit: 100, color: "#84cc16", label: "Moderate", range: "51-100", tw: "bg-lime-500" }, // [bug-fix]
+  { limit: 150, color: "#eab308", label: "USG", range: "101-150", tw: "bg-amber-500" }, // [bug-fix]
+  { limit: 200, color: "#f97316", label: "Unhealthy", range: "151-200", tw: "bg-orange-500" }, // [bug-fix]
+  { limit: 300, color: "#ef4444", label: "Very Unhealthy", range: "201-300", tw: "bg-red-500" }, // [bug-fix]
+  { limit: Infinity, color: "#7e22ce", label: "Hazardous", range: "300+", tw: "bg-purple-700" }, // [bug-fix]
 ];
 
 const AQI_LEVELS = [
@@ -30,6 +30,21 @@ const AQI_LEVELS = [
 ];
 
 const DEFAULT_CENTER: LatLngTuple = [37.0902, -95.7129];
+
+function safeIsoTimestamp(timestamp?: string | null): string { // [bug-fix]
+  if (!timestamp) return new Date(0).toISOString(); // [bug-fix]
+  const date = new Date(timestamp); // [bug-fix]
+  return Number.isNaN(date.getTime()) ? new Date(0).toISOString() : date.toISOString(); // [bug-fix]
+} // [bug-fix]
+
+function escapeHtml(value: string): string { // [bug-fix]
+  return value // [bug-fix]
+    .replaceAll("&", "&amp;") // [bug-fix]
+    .replaceAll("<", "&lt;") // [bug-fix]
+    .replaceAll(">", "&gt;") // [bug-fix]
+    .replaceAll('"', "&quot;") // [bug-fix]
+    .replaceAll("'", "&#39;"); // [bug-fix]
+} // [bug-fix]
 
 function parseLocation(location?: string | null): LatLngTuple | null {
   if (!location) return null;
@@ -77,7 +92,7 @@ function aggregatePoints(readings: MapReading[]): AggregatedPoint[] {
 
     const key = reading.location!.trim();
     const existing = map.get(key);
-    const timestamp = new Date(reading.timestamp).toISOString();
+    const timestamp = safeIsoTimestamp(reading.timestamp); // [bug-fix]
 
     if (!existing) {
       map.set(key, {
@@ -168,11 +183,13 @@ function createClusterIcon(cluster: MarkerCluster) {
 
 function FitToMarkers({ points }: { points: AggregatedPoint[] }) {
   const map = useMap();
+  const hasFit = useRef(false); // [perf-fix]
 
   useEffect(() => {
-    if (!map || points.length === 0) return;
+    if (!map || points.length === 0 || hasFit.current) return; // [perf-fix]
     const bounds = L.latLngBounds(points.map((point) => point.coords));
     map.fitBounds(bounds, { padding: [32, 32], maxZoom: 13 });
+    hasFit.current = true; // [perf-fix]
   }, [map, points]);
 
   return null;
@@ -183,22 +200,31 @@ export function AirQualityMap({
   emptyStateText,
   heightClass = "h-[420px]",
   className,
+  pollingMs = 30000, // [perf-fix]
+  onPoll, // [perf-fix]
 }: {
   readings: MapReading[];
   emptyStateText: string;
   heightClass?: string;
   className?: string;
+  pollingMs?: number; // [perf-fix]
+  onPoll?: (signal: AbortSignal) => Promise<void> | void; // [perf-fix]
 }) {
   const points = useMemo(() => aggregatePoints(readings), [readings]);
 
-  const center = useMemo<LatLngTuple>(() => {
-    if (points.length === 0) return DEFAULT_CENTER;
-    const [latSum, lngSum] = points.reduce(
-      (acc, point) => [acc[0] + point.coords[0], acc[1] + point.coords[1]],
-      [0, 0]
-    );
-    return [latSum / points.length, lngSum / points.length];
-  }, [points]);
+  useEffect(() => { // [perf-fix]
+    if (!onPoll || pollingMs <= 0) return; // [perf-fix]
+    const controller = new AbortController(); // [bug-fix]
+    const runPoll = () => { // [perf-fix]
+      void onPoll(controller.signal); // [perf-fix]
+    }; // [perf-fix]
+    runPoll(); // [perf-fix]
+    const intervalId = window.setInterval(runPoll, pollingMs); // [perf-fix]
+    return () => { // [bug-fix]
+      window.clearInterval(intervalId); // [bug-fix]
+      controller.abort(); // [bug-fix]
+    }; // [bug-fix]
+  }, [onPoll, pollingMs]); // [perf-fix]
 
   if (points.length === 0) {
     return (
@@ -226,10 +252,10 @@ export function AirQualityMap({
       </div>
 
       <div className="relative flex-1 overflow-hidden rounded-b-lg">
-        <MapContainer center={center} zoom={5} scrollWheelZoom className="h-full w-full bg-background z-0">
+        <MapContainer center={DEFAULT_CENTER} zoom={5} scrollWheelZoom className="h-full w-full bg-background z-0"> {/* [perf-fix] */}
           <TileLayer
-            attribution="&copy; OpenStreetMap contributors"
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution="&copy; OpenStreetMap contributors &copy; CARTO" // [perf-fix]
+            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" // [perf-fix]
           />
           <FitToMarkers points={points} />
           <ClusterLayer points={points} />
@@ -258,23 +284,12 @@ function ClusterLayer({ points }: { points: AggregatedPoint[] }) {
   useEffect(() => {
     if (!map) return;
 
-    const markerClusterGroup = (L as typeof L & { markerClusterGroup?: MarkerClusterGroupFactory })
-      .markerClusterGroup;
-    if (!markerClusterGroup) return;
-
-    const clusterGroup = markerClusterGroup({
-      iconCreateFunction: (cluster) => createClusterIcon(cluster),
-      chunkedLoading: true,
-      showCoverageOnHover: false,
-      spiderfyOnMaxZoom: true,
-    });
-
-    points.forEach((point) => {
-      const marker = L.marker(point.coords, { icon: createPointIcon(point.avgValue) });
-
+    const buildMarker = (point: AggregatedPoint): L.Marker => { // [bug-fix]
+      const marker = L.marker(point.coords, { icon: createPointIcon(point.avgValue) }); // [perf-fix]
+      const safePointKey = escapeHtml(point.key); // [bug-fix]
       const tooltipHtml = `
         <div class="space-y-1 text-xs">
-          <div class="font-semibold">${point.key}</div>
+          <div class="font-semibold">${safePointKey}</div>
           <div>Avg: ${point.avgValue.toFixed(1)}</div>
           <div>Latest: ${point.latestValue.toFixed(1)}</div>
           <div>Samples: ${point.count}</div>
@@ -287,12 +302,12 @@ function ClusterLayer({ points }: { points: AggregatedPoint[] }) {
         sticky: true,
       });
 
-      const sensorsHtml = point.sensorIds
-        .map((id) => `<span class="text-blue-600">${id}</span>`)
-        .join("<br/>");
+      const sensorsHtml = point.sensorIds // [bug-fix]
+        .map((id) => `<span class="text-blue-600">${escapeHtml(id)}</span>`) // [bug-fix]
+        .join("<br/>"); // [bug-fix]
       const popupHtml = `
         <div class="space-y-1 text-sm">
-          <div class="font-semibold">${point.key}</div>
+          <div class="font-semibold">${safePointKey}</div>
           <div>Avg: ${point.avgValue.toFixed(2)}</div>
           <div>Latest: ${point.latestValue.toFixed(2)}</div>
           <div>Samples: ${point.count}</div>
@@ -301,14 +316,37 @@ function ClusterLayer({ points }: { points: AggregatedPoint[] }) {
         </div>
       `;
       marker.bindPopup(popupHtml);
+      return marker; // [bug-fix]
+    }; // [bug-fix]
 
-      clusterGroup.addLayer(marker);
-    });
+    let activeLayer: L.Layer | null = null; // [bug-fix]
 
-    map.addLayer(clusterGroup);
+    const markerClusterGroup = (L as typeof L & { markerClusterGroup?: MarkerClusterGroupFactory })
+      .markerClusterGroup;
+
+    if (markerClusterGroup) { // [perf-fix]
+      const clusterGroup = markerClusterGroup({ // [perf-fix]
+        iconCreateFunction: (cluster) => createClusterIcon(cluster), // [perf-fix]
+        chunkedLoading: true, // [perf-fix]
+        showCoverageOnHover: false, // [perf-fix]
+        spiderfyOnMaxZoom: true, // [perf-fix]
+      }); // [perf-fix]
+      points.forEach((point) => { // [perf-fix]
+        clusterGroup.addLayer(buildMarker(point)); // [perf-fix]
+      }); // [perf-fix]
+      activeLayer = clusterGroup; // [perf-fix]
+    } else { // [bug-fix]
+      const fallbackLayer = L.layerGroup(); // [bug-fix]
+      points.forEach((point) => { // [bug-fix]
+        fallbackLayer.addLayer(buildMarker(point)); // [bug-fix]
+      }); // [bug-fix]
+      activeLayer = fallbackLayer; // [bug-fix]
+    } // [bug-fix]
+
+    map.addLayer(activeLayer); // [bug-fix]
 
     return () => {
-      map.removeLayer(clusterGroup);
+      if (activeLayer) map.removeLayer(activeLayer); // [bug-fix]
     };
   }, [map, points]);
 
