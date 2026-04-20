@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -628,10 +629,10 @@ export function MapView({
     });
   };
 
-  return (
+  const mapContent = (
     <div
       className={`relative w-full overflow-hidden bg-[#05090f] ${
-        isFullscreen ? 'fixed inset-0 z-50 rounded-none' : 'h-full rounded-b-xl'
+        isFullscreen ? 'fixed inset-0 z-[1200] h-screen w-screen rounded-none' : 'h-full rounded-b-xl'
       } ${className}`}
       role="application"
       aria-label="Air quality map"
@@ -717,4 +718,10 @@ export function MapView({
       </div>
     </div>
   );
+
+  if (isFullscreen && typeof document !== 'undefined') {
+    return createPortal(mapContent, document.body);
+  }
+
+  return mapContent;
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import type { LatLngTuple } from "leaflet";
 import L from "leaflet";
@@ -808,11 +809,13 @@ export function AirQualityMap({
     });
   };
 
-  return (
+  const mapContent = (
     <div
       className={cn(
         "relative w-full overflow-hidden border border-slate-800/70 bg-[#03070b]",
-        isFullscreen ? "fixed inset-0 z-50 rounded-none" : ["rounded-lg", heightClass],
+        isFullscreen
+          ? "fixed inset-0 z-[1200] h-screen w-screen rounded-none"
+          : ["rounded-lg", heightClass],
         className
       )}
     >
@@ -898,4 +901,10 @@ export function AirQualityMap({
       </div>
     </div>
   );
+
+  if (isFullscreen && typeof document !== "undefined") {
+    return createPortal(mapContent, document.body);
+  }
+
+  return mapContent;
 }
