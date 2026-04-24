@@ -1,12 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { MapSensor } from '@/hooks/useSensorsOnMap';
 import type { MapStyleValue } from './types';
+import { Link, usePathname } from '@/i18n/navigation';
 
 if (typeof window !== 'undefined') {
   delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
@@ -461,6 +461,7 @@ interface MapViewProps {
   mapStyle?: MapStyleValue;
   children: React.ReactNode;
   className?: string;
+  mapActionHref?: string | null;
 }
 
 export function MapView({
@@ -468,8 +469,10 @@ export function MapView({
   mapStyle = 'dark',
   children,
   className = '',
+  mapActionHref = null,
 }: MapViewProps) {
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const pathname = usePathname();
+  const [isMapReady, setIsMapReady] = useState(false);
   const [showStations, setShowStations] = useState(true);
   const [showHeatMap, setShowHeatMap] = useState(true);
   const [showFires, setShowFires] = useState(false);
@@ -479,6 +482,7 @@ export function MapView({
   const [windData, setWindData] = useState<VelocityRecord[] | null>(null);
 
   const tiles = TILE_LAYERS[mapStyle];
+  const mapInstanceKey = useMemo(() => `${pathname}:${mapStyle}`, [pathname, mapStyle]);
 
   const heatMapPoints = useMemo<Array<[number, number, number]>>(() => {
     if (latestSensors.length > 0) {
@@ -532,6 +536,10 @@ export function MapView({
       if (error instanceof DOMException && error.name === 'AbortError') return;
       console.warn('Failed to fetch Open-Meteo wind data', error);
     }
+  }, []);
+
+  useEffect(() => {
+    setIsMapReady(true);
   }, []);
 
   useEffect(() => {
@@ -599,28 +607,6 @@ export function MapView({
     };
   }, [fetchWind, showWind]);
 
-  useEffect(() => {
-    document.body.style.overflow = isFullscreen ? 'hidden' : '';
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [isFullscreen]);
-
-  useEffect(() => {
-    if (!isFullscreen) return;
-
-    const onEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setIsFullscreen(false);
-      }
-    };
-
-    window.addEventListener('keydown', onEscape);
-    return () => {
-      window.removeEventListener('keydown', onEscape);
-    };
-  }, [isFullscreen]);
-
   const toggleStations = () => {
     setShowStations((current) => {
       const next = !current;
@@ -631,54 +617,59 @@ export function MapView({
 
   const mapContent = (
     <div
-      className={`relative w-full overflow-hidden bg-[#05090f] ${
-        isFullscreen ? 'fixed inset-0 z-[1200] h-screen w-screen rounded-none' : 'h-full rounded-b-xl'
-      } ${className}`}
+      className={`relative h-full w-full overflow-hidden bg-[#05090f] rounded-b-xl ${className}`}
       role="application"
       aria-label="Air quality map"
     >
       <div className="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_20%_20%,rgba(56,189,248,0.1),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(16,185,129,0.08),transparent_45%)]" />
 
-      <MapContainer
-        center={ALMATY_CENTER}
-        zoom={12}
-        scrollWheelZoom
-        className="h-full w-full"
-        style={{ height: '100%', width: '100%', zIndex: 1, position: 'relative' }}
-      >
-        <TileLayer attribution={tiles.attribution} url={tiles.url} className={tiles.className} />
-        {mapStyle === 'dark' ? (
-          <TileLayer
-            attribution={tiles.attribution}
-            url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
-            opacity={0.9}
-          />
-        ) : null}
+      {isMapReady ? (
+        <MapContainer
+          key={mapInstanceKey}
+          center={ALMATY_CENTER}
+          zoom={12}
+          scrollWheelZoom
+          className="h-full w-full"
+          style={{ height: '100%', width: '100%', zIndex: 1, position: 'relative' }}
+        >
+          <TileLayer attribution={tiles.attribution} url={tiles.url} className={tiles.className} />
+          {mapStyle === 'dark' ? (
+            <TileLayer
+              attribution={tiles.attribution}
+              url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+              opacity={0.9}
+            />
+          ) : null}
 
-        <FitToSensors sensors={sensors} />
-        <ResizeOnFullscreen fullscreen={isFullscreen} />
+          <FitToSensors sensors={sensors} />
+          <ResizeOnFullscreen fullscreen={false} />
 
-        {pluginsReady ? <HeatMapLayer visible={showHeatMap} points={heatMapPoints} /> : null}
-        {pluginsReady ? <WindLayer visible={showWind} data={windData} /> : null}
-        <FireLayer visible={showFires} />
+          {pluginsReady ? <HeatMapLayer visible={showHeatMap} points={heatMapPoints} /> : null}
+          {pluginsReady ? <WindLayer visible={showWind} data={windData} /> : null}
+          <FireLayer visible={showFires} />
 
-        {showStations ? children : null}
-      </MapContainer>
+          {showStations ? children : null}
+        </MapContainer>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center">
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-[rgba(255,255,255,0.08)] border-t-[#5e6ad2]" />
+        </div>
+      )}
 
       <div className="pointer-events-none absolute inset-0 z-[500]">
         <div className="pointer-events-auto absolute left-4 top-4">
-          <div className="inline-flex items-center rounded-full bg-[#b8962e] px-3 py-1 text-sm text-white shadow-lg">
-            <span>🗺 Tynys Map</span>
-            <button
-              type="button"
-              onClick={() => setIsFullscreen((current) => !current)}
-              className="ml-3 rounded-full bg-black/20 px-2 py-0.5 text-sm hover:bg-black/35"
-              aria-label="Toggle fullscreen map"
-              title="Toggle fullscreen"
-            >
-              ⛶
-            </button>
-          </div>
+          {mapActionHref ? (
+            <div className="inline-flex items-center rounded-full bg-[#b8962e] px-1 py-1 text-sm text-white shadow-lg">
+              <Link
+                href={mapActionHref}
+                className="rounded-full px-3 py-1 font-medium hover:bg-black/20"
+                aria-label="Open TynysAI map page"
+                title="Open map page"
+              >
+                TynysAI Map
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="pointer-events-auto absolute right-4 top-4 flex flex-col items-end gap-2">
@@ -718,10 +709,6 @@ export function MapView({
       </div>
     </div>
   );
-
-  if (isFullscreen && typeof document !== 'undefined') {
-    return createPortal(mapContent, document.body);
-  }
 
   return mapContent;
 }

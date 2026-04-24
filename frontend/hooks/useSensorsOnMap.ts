@@ -4,10 +4,8 @@
 import React from 'react';
 
 import { useEffect, useState, useCallback } from 'react';
-import { airQualityAPI, sensorAPI, AirQualityData } from '@/lib/api';
-
-// [demo-sensor]
-const DEMO_SENSOR = { lat: 43.238, lng: 76.945, aqi: 42, name: "TynysAI Demo" };
+import { sensorAPI, AirQualityData } from '@/lib/api';
+import { buildDemoSensor } from '@/lib/demo-sensor';
 
 /**
  * Unified map sensor type for both air quality API and purchased sensors.
@@ -84,6 +82,20 @@ function applyFixedMarkerPositions(sensors: MapSensor[]): MapSensor[] {
   });
 }
 
+function sensorsSignature(sensors: MapSensor[]): string {
+  return JSON.stringify(
+    sensors.map((sensor) => [
+      sensor.id,
+      sensor.lat,
+      sensor.lng,
+      sensor.aqi,
+      sensor.timestamp ?? null,
+      sensor.device_id ?? null,
+      sensor.name ?? null,
+    ])
+  );
+}
+
 /**
  * Converts AirQualityData to MapSensor
  */
@@ -147,7 +159,7 @@ export function useSensorsOnMap(
     refetchIntervalMs?: number;
   } = {}
 ): UseSensorsOnMapResult {
-  const { userId, refetchIntervalMs = 5000 } = options;
+  const { userId, refetchIntervalMs = 60_000 } = options;
   const [sensors, setSensors] = useState<MapSensor[]>([]);
   const [allAirQuality, setAllAirQuality] = useState<AirQualityData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,130 +167,154 @@ export function useSensorsOnMap(
 
   // Only log error once per error occurrence
   const lastErrorRef = React.useRef<string | null>(null);
-  const consecutiveFailures = React.useRef(0);
+  const hasLoadedOnceRef = React.useRef(false);
+  const requestInFlightRef = React.useRef<Promise<void> | null>(null);
+  const lastSensorsSignatureRef = React.useRef<string>('');
+
   const refetch = useCallback(async () => {
-    // Only show loading on the very first fetch (no data yet)
-    if (sensors.length === 0 && allAirQuality.length === 0) {
-      setLoading(true);
+    if (requestInFlightRef.current) {
+      return requestInFlightRef.current;
     }
-    setError(null);
-    try {
-      // Загружаем данные из /api/map-data (реалтайм) и купленные/выданные датчики пользователя
-      const [mapDataResponse, purchasedRawSensors] = await Promise.all([
-        fetch('/api/map-data')
-          .then(res => {
-            if (!res.ok) {
-              console.warn('[SensorsOnMap] API response not OK:', res.status, res.statusText);
-              return null;
-            }
-            return res.json();
-          })
-          .then(data => {
-            if (data?.success && Array.isArray(data.data)) {
-              console.log('[SensorsOnMap] Received map-data:', data.data.length, 'items');
-              return data.data;
-            }
-            console.warn('[SensorsOnMap] Invalid map-data format:', data);
-            return [];
-          })
-          .catch((err) => {
-            console.error('[SensorsOnMap] map-data fetch error:', err);
+
+    const requestPromise = (async () => {
+      if (!hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
+      setError(null);
+      try {
+        // Загружаем данные из /api/map-data (реалтайм) и купленные/выданные датчики пользователя
+        const [mapDataResponse, purchasedRawSensors] = await Promise.all([
+          fetch('/api/map-data', { cache: 'no-store' })
+            .then(res => {
+              if (!res.ok) {
+                console.warn('[SensorsOnMap] API response not OK:', res.status, res.statusText);
+                return [];
+              }
+              return res.json();
+            })
+            .then(data => {
+              if (data?.success && Array.isArray(data.data)) {
+                console.log('[SensorsOnMap] Received map-data:', data.data.length, 'items');
+                return data.data;
+              }
+              console.warn('[SensorsOnMap] Invalid map-data format:', data);
+              return [];
+            })
+            .catch((err) => {
+              console.error('[SensorsOnMap] map-data fetch error:', err);
+              return [];
+            }),
+          sensorAPI.mapSensors().catch((err) => {
+            console.warn('[SensorsOnMap] mapSensors fetch error:', err?.message || err);
             return [];
           }),
-        sensorAPI.mapSensors().catch((err) => {
-          console.warn('[SensorsOnMap] mapSensors fetch error:', err?.message || err);
-          return [];
-        }),
-      ]);
+        ]);
+        const demoSensorPayload = await fetch('/api/demo-sensor', { cache: 'no-store' })
+          .then((res) => (res.ok ? res.json() : null))
+          .then((payload) => payload?.data ?? buildDemoSensor())
+          .catch(() => buildDemoSensor());
 
-      // Преобразуем данные из /api/map-data в MapSensor
-      // Показываем только данные от активного устройства
-      const mapDataSensors: MapSensor[] = [];
-      if (Array.isArray(mapDataResponse) && mapDataResponse.length > 0) {
-        mapDataResponse.forEach((item: any, i: number) => {
-          if (item?.location) {
-            const [lat, lng] = item.location.split(',').map((v: string) => parseFloat(v.trim()));
-            if (!isNaN(lat) && !isNaN(lng)) {
-              const params = item.parameters || {};
-              mapDataSensors.push({
-                id: `map-data-${item.sensorId || i}`,
-                lat,
-                lng,
-                aqi: item.value || 0,
-                isPurchased: false,
-                name: item.site || item.sensorId || 'Sensor',
-                device_name: item.device_name,
-                device_id: item.device_id || item.sensorId,
-                label: item.label,
-                site: item.site,
-                city: 'Almaty',
-                country: 'KZ',
-                timestamp: item.timestamp,
-                parameters: {
-                  pm1: params.pm1 ?? 0,
-                  pm25: params.pm25 ?? item.value ?? 0,
-                  pm10: params.pm10 ?? 0,
-                  co2: params.co2 ?? 0,
-                  voc: params.voc ?? 0,
-                  temp: params.temp ?? 0,
-                  hum: params.hum ?? 0,
-                  ch2o: params.ch2o ?? 0,
-                  co: params.co ?? 0,
-                  o3: params.o3 ?? 0,
-                  no2: params.no2 ?? 0,
-                },
-              });
+        // Преобразуем данные из /api/map-data в MapSensor
+        // Показываем только данные от активного устройства
+        const mapDataRows = Array.isArray(mapDataResponse) ? mapDataResponse : [];
+        const mapDataSensors: MapSensor[] = [];
+        if (mapDataRows.length > 0) {
+          mapDataRows.forEach((item: any, i: number) => {
+            if (item?.location) {
+              const [lat, lng] = item.location.split(',').map((v: string) => parseFloat(v.trim()));
+              if (!isNaN(lat) && !isNaN(lng)) {
+                const params = item.parameters || {};
+                mapDataSensors.push({
+                  id: `map-data-${item.sensorId || i}`,
+                  lat,
+                  lng,
+                  aqi: item.value || 0,
+                  isPurchased: false,
+                  name: item.site || item.sensorId || 'Sensor',
+                  device_name: item.device_name,
+                  device_id: item.device_id || item.sensorId,
+                  label: item.label,
+                  site: item.site,
+                  city: 'Almaty',
+                  country: 'KZ',
+                  timestamp: item.timestamp,
+                  parameters: {
+                    pm1: params.pm1 ?? 0,
+                    pm25: params.pm25 ?? item.value ?? 0,
+                    pm10: params.pm10 ?? 0,
+                    co2: params.co2 ?? 0,
+                    voc: params.voc ?? 0,
+                    temp: params.temp ?? 0,
+                    hum: params.hum ?? 0,
+                    ch2o: params.ch2o ?? 0,
+                    co: params.co ?? 0,
+                    o3: params.o3 ?? 0,
+                    no2: params.no2 ?? 0,
+                  },
+                });
+              } else {
+                console.warn('[SensorsOnMap] Invalid coordinates:', item.location);
+              }
             } else {
-              console.warn('[SensorsOnMap] Invalid coordinates:', item.location);
+              console.warn('[SensorsOnMap] Missing location in item:', item);
             }
-          } else {
-            console.warn('[SensorsOnMap] Missing location in item:', item);
-          }
-        });
+          });
+        }
+
+        const purchasedSensors = (Array.isArray(purchasedRawSensors) ? purchasedRawSensors : [])
+          .map((sensor, i) => purchasedSensorToMapSensor(sensor, i))
+          .filter((sensor): sensor is MapSensor => sensor !== null);
+
+        const mergedSensors = applyFixedMarkerPositions([...purchasedSensors, ...mapDataSensors]);
+
+        // [demo-sensor] Keep demo marker independent from API payloads.
+        const demoSensor: MapSensor = {
+          id: demoSensorPayload.id,
+          lat: demoSensorPayload.lat,
+          lng: demoSensorPayload.lng,
+          aqi: demoSensorPayload.aqi,
+          isPurchased: false,
+          isDemo: true,
+          name: demoSensorPayload.name,
+          city: demoSensorPayload.city,
+          country: demoSensorPayload.country,
+          timestamp: demoSensorPayload.timestamp,
+          parameters: demoSensorPayload.parameters,
+          markerIndex: 0,
+        };
+        const mapSensorsWithDemo = [demoSensor, ...mergedSensors];
+        const nextSignature = sensorsSignature(mapSensorsWithDemo);
+
+        if (nextSignature !== lastSensorsSignatureRef.current) {
+          console.log('[SensorsOnMap] Processed sensors:', mapSensorsWithDemo.length, mapSensorsWithDemo);
+          setSensors(mapSensorsWithDemo);
+          lastSensorsSignatureRef.current = nextSignature;
+        }
+        setAllAirQuality((prev) => (prev.length === 0 ? prev : []));
+
+        if (mergedSensors.length === 0 && (mapDataRows.length > 0 || purchasedSensors.length > 0)) {
+          console.error('[SensorsOnMap] Failed to process sensors from response:', mapDataRows);
+        }
+        lastErrorRef.current = null;
+      } catch (e: any) {
+        const errMsg = e?.message ?? 'Failed to load sensors';
+        setError(errMsg);
+        if (lastErrorRef.current !== errMsg) {
+          console.warn('[SensorsOnMap]', errMsg);
+          lastErrorRef.current = errMsg;
+        }
+      } finally {
+        hasLoadedOnceRef.current = true;
+        setLoading(false);
       }
+    })();
 
-      const purchasedSensors = (Array.isArray(purchasedRawSensors) ? purchasedRawSensors : [])
-        .map((sensor, i) => purchasedSensorToMapSensor(sensor, i))
-        .filter((sensor): sensor is MapSensor => sensor !== null);
-
-      const mergedSensors = applyFixedMarkerPositions([...purchasedSensors, ...mapDataSensors]);
-
-      // [demo-sensor] Keep demo marker independent from API payloads.
-      const demoSensor: MapSensor = {
-        id: 'demo-tynysai-marker',
-        lat: DEMO_SENSOR.lat,
-        lng: DEMO_SENSOR.lng,
-        aqi: DEMO_SENSOR.aqi,
-        isPurchased: false,
-        isDemo: true,
-        name: DEMO_SENSOR.name,
-        markerIndex: 0,
-      };
-      const mapSensorsWithDemo = [demoSensor, ...mergedSensors];
-
-      console.log('[SensorsOnMap] Processed sensors:', mapSensorsWithDemo.length, mapSensorsWithDemo);
-
-      setAllAirQuality([]);
-      setSensors(mapSensorsWithDemo);
-      
-      if (mergedSensors.length === 0 && (mapDataResponse.length > 0 || purchasedSensors.length > 0)) {
-        console.error('[SensorsOnMap] Failed to process sensors from response:', mapDataResponse);
-      }
-      lastErrorRef.current = null;
-      consecutiveFailures.current = 0;
-    } catch (e: any) {
-      const errMsg = e?.message ?? 'Failed to load sensors';
-      setError(errMsg);
-      // Keep stale data on the map instead of blanking it
-      consecutiveFailures.current += 1;
-      if (lastErrorRef.current !== errMsg) {
-        console.warn('[SensorsOnMap]', errMsg);
-        lastErrorRef.current = errMsg;
-      }
+    requestInFlightRef.current = requestPromise;
+    try {
+      await requestPromise;
     } finally {
-      setLoading(false);
+      requestInFlightRef.current = null;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   useEffect(() => {
@@ -287,14 +323,9 @@ export function useSensorsOnMap(
 
   useEffect(() => {
     if (refetchIntervalMs <= 0) return;
-    // Back off on repeated failures: double the interval per failure, cap at 60 s
-    const backoff = Math.min(
-      refetchIntervalMs * Math.pow(2, consecutiveFailures.current),
-      60_000
-    );
-    const interval = setInterval(refetch, backoff);
+    const interval = setInterval(refetch, refetchIntervalMs);
     return () => clearInterval(interval);
-  }, [refetchIntervalMs, refetch, error]);
+  }, [refetchIntervalMs, refetch]);
 
   return { sensors, allAirQuality, loading, isLoading: loading, error, refetch };
 }

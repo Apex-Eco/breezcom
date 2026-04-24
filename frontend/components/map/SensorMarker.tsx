@@ -54,9 +54,10 @@ function formatLastUpdated(ts?: string): string {
 interface SensorMarkerProps {
   sensor: MapSensor;
   onClick?: (sensor: MapSensor) => void;
+  showPopup?: boolean;
 }
 
-function SensorMarkerInner({ sensor, onClick }: SensorMarkerProps) {
+function SensorMarkerInner({ sensor, onClick, showPopup = true }: SensorMarkerProps) {
   const t = useTranslations('map');
   const tCommon = useTranslations('common');
   const icon = useMemo(() => createMarkerIcon(sensor), [sensor]);
@@ -68,6 +69,10 @@ function SensorMarkerInner({ sensor, onClick }: SensorMarkerProps) {
   const eventHandlers = useCallback(() => ({
     click: () => onClick?.(sensor),
   }), [sensor, onClick]);
+
+  if (!showPopup) {
+    return <Marker position={position} icon={icon} eventHandlers={eventHandlers()} />;
+  }
 
   // [restyle]
   if (sensor.isPurchased) {

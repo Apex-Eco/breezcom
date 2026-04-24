@@ -47,53 +47,67 @@ export function useUserSensors(
   options: {
     /** Pass the logged-in user's id. Null / undefined means not logged in. */
     userId?: string | null;
-    /** Polling interval in ms. 0 to disable. Default 5000. */
+    /** Polling interval in ms. 0 to disable. Default 60000. */
     refetchIntervalMs?: number;
   } = {}
 ): UseUserSensorsResult {
-  const { userId, refetchIntervalMs = 5000 } = options;
+  const { userId, refetchIntervalMs = 60_000 } = options;
   const [sensors, setSensors] = useState<MapSensor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const lastErrorRef = React.useRef<string | null>(null);
-  const consecutiveFailures = React.useRef(0);
+  const requestInFlightRef = React.useRef<Promise<void> | null>(null);
+  const hasLoadedOnceRef = React.useRef(false);
 
   const refetch = useCallback(async () => {
-    // No user → no sensors to fetch
-    if (!userId) {
-      setSensors([]);
-      setLoading(false);
-      return;
+    if (requestInFlightRef.current) {
+      return requestInFlightRef.current;
     }
 
-    // Only show loading spinner on the very first fetch
-    if (sensors.length === 0) {
-      setLoading(true);
-    }
-    setError(null);
-
-    try {
-      const raw = await sensorAPI.mapSensors();
-      const list = Array.isArray(raw) ? raw : [];
-      const mapped = list
-        .map((s, i) => toMapSensor(s, i))
-        .filter((s): s is MapSensor => s !== null);
-
-      setSensors(mapped);
-      lastErrorRef.current = null;
-      consecutiveFailures.current = 0;
-    } catch (e: any) {
-      const errMsg = e?.message ?? 'Failed to load sensors';
-      setError(errMsg);
-      // Keep stale data visible instead of blanking the map
-      consecutiveFailures.current += 1;
-      if (lastErrorRef.current !== errMsg) {
-        console.warn('[useUserSensors]', errMsg);
-        lastErrorRef.current = errMsg;
+    const requestPromise = (async () => {
+      // No user → no sensors to fetch
+      if (!userId) {
+        setSensors([]);
+        hasLoadedOnceRef.current = true;
+        setLoading(false);
+        return;
       }
+
+      // Only show loading spinner on the very first fetch
+      if (!hasLoadedOnceRef.current) {
+        setLoading(true);
+      }
+      setError(null);
+
+      try {
+        const raw = await sensorAPI.mapSensors();
+        const list = Array.isArray(raw) ? raw : [];
+        const mapped = list
+          .map((s, i) => toMapSensor(s, i))
+          .filter((s): s is MapSensor => s !== null);
+
+        setSensors(mapped);
+        lastErrorRef.current = null;
+      } catch (e: any) {
+        const errMsg = e?.message ?? 'Failed to load sensors';
+        setError(errMsg);
+        // Keep stale data visible instead of blanking the map
+        if (lastErrorRef.current !== errMsg) {
+          console.warn('[useUserSensors]', errMsg);
+          lastErrorRef.current = errMsg;
+        }
+      } finally {
+        hasLoadedOnceRef.current = true;
+        setLoading(false);
+      }
+    })();
+
+    requestInFlightRef.current = requestPromise;
+    try {
+      await requestPromise;
     } finally {
-      setLoading(false);
+      requestInFlightRef.current = null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
@@ -104,13 +118,9 @@ export function useUserSensors(
 
   useEffect(() => {
     if (!userId || refetchIntervalMs <= 0) return;
-    const backoff = Math.min(
-      refetchIntervalMs * Math.pow(2, consecutiveFailures.current),
-      60_000
-    );
-    const interval = setInterval(refetch, backoff);
+    const interval = setInterval(refetch, refetchIntervalMs);
     return () => clearInterval(interval);
-  }, [userId, refetchIntervalMs, refetch, error]);
+  }, [userId, refetchIntervalMs, refetch]);
 
   return { sensors, loading, error, refetch };
 }

@@ -9,7 +9,7 @@ import { SensorDetailPanel } from './SensorDetailPanel';
 export default function AlmatyMap() {
   const { sensors, loading, error, refetch } = useSensorsOnMap({
     userId: null,
-    refetchIntervalMs: 5000,
+    refetchIntervalMs: 60_000,
   });
   const [selectedSensor, setSelectedSensor] = useState<MapSensor | null>(null);
 
@@ -96,7 +96,7 @@ export default function AlmatyMap() {
             <span>{sensors.length} активных датчиков</span>
           </div>
           <span className="text-[#62666d]">|</span>
-          <span>Обновление каждые 5 сек</span>
+          <span>Обновление каждые 60 сек</span>
         </div>
       )}
     </div>

@@ -845,7 +845,7 @@ export function AirQualityMap({
       <div className="pointer-events-none absolute inset-0 z-30">
         <div className="pointer-events-auto absolute left-4 top-4">
           <div className="inline-flex items-center rounded-full bg-[#b8962e] px-3 py-1 text-sm text-white shadow-lg">
-            <span>🗺 Tynys Map</span>
+            <span>🗺 Breez Map</span>
             <button
               type="button"
               onClick={() => setIsFullscreen((current) => !current)}

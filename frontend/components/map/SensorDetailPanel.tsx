@@ -161,7 +161,7 @@ export function SensorDetailPanel({ sensor }: SensorDetailPanelProps) {
 
         {/* Footer */}
         <div className="border-t border-[rgba(255,255,255,0.08)] pt-2 text-center text-[10px] text-[#62666d]">
-          {isOnline ? 'Обновляется каждые 5 секунд' : `Последние данные: ${timeAgo}`}
+          {isOnline ? 'Обновляется каждые 60 секунд' : `Последние данные: ${timeAgo}`}
         </div>
       </div>
     </div>

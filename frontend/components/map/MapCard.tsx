@@ -59,7 +59,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
   // [restyle]
   return (
     <article
-      className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0f1011] scroll-reveal"
+      className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0f1011] scroll-reveal"
       style={{
         boxShadow:
           'rgba(0,0,0,0.2) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 2px 4px',
@@ -68,44 +68,22 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
       aria-labelledby="map-card-title"
       aria-describedby="map-card-desc"
     >
-      {/* Header row */}
-      {/* [restyle] */}
-      <header className="relative z-10 border-b border-white/5 bg-[#0f1011] px-4 py-4 sm:px-6 md:px-8 md:py-5">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <h2
-              id="map-card-title"
-              className="mb-1 flex items-center gap-2 text-lg font-[510] tracking-[-0.24px] text-[#f7f8f8] sm:text-xl md:text-2xl"
-            >
-              <span>{t('title')}</span>
-            </h2>
-            <p id="map-card-desc" className="flex items-center gap-2 text-xs text-[#8a8f98] sm:text-sm">
-              <span className="text-base font-[590] tabular-nums text-[#d0d6e0] sm:text-lg">
-                {filter === 'all' ? sensors.length : activeCount}
-              </span>
-              <span>{t('activeSensor')}{activeCount !== 1 ? 's' : ''}</span>
-            </p>
-          </div>
-          <div
-            className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5 sm:px-4 sm:py-2"
-            role="status"
-            aria-live="polite"
-            aria-label="Live data"
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-white/5 bg-[rgba(255,255,255,0.02)] px-4 py-3 sm:px-5 md:px-6">
+        <div>
+          <h2
+            id="map-card-title"
+            className="text-[15px] font-[590] tracking-[-0.165px] text-[#f7f8f8] sm:text-base"
           >
-            <span className="relative flex h-2 w-2" aria-hidden>
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10b981]" />
+            {t('title')}
+          </h2>
+          <p id="map-card-desc" className="mt-1 flex items-center gap-2 text-[12px] text-[#8a8f98]">
+            <span className="font-[590] tabular-nums text-[#d0d6e0]">
+              {filter === 'all' ? sensors.length : activeCount}
             </span>
-            <span className="text-xs font-[510] tracking-[0.08em] text-[#d0d6e0]">{t('live')}</span>
-          </div>
+            <span>{t('activeSensor')}{activeCount !== 1 ? 's' : ''}</span>
+          </p>
         </div>
-      </header>
-
-      {/* Toolbar row */}
-      {/* [restyle] */}
-      <div className="relative z-10 flex flex-wrap items-center gap-2 border-b border-white/5 bg-[rgba(255,255,255,0.02)] px-4 py-3 sm:gap-4 sm:px-6 md:px-8">
-        <div className="flex items-center gap-2" role="group" aria-label={t('styleGroup')}>
-          <span className="hidden text-xs uppercase tracking-[0.08em] text-[#62666d] sm:inline">{t('style')}</span>
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex overflow-hidden rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)]">
             {MAP_STYLE_OPTIONS.map((opt) => (
               <button
@@ -114,7 +92,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
                 onClick={() => setMapStyle(opt.value)}
                 aria-pressed={mapStyle === opt.value}
                 aria-label={`${t('styleGroup')}: ${t(opt.labelKey)}`}
-                className={`px-3 py-1.5 text-xs font-[510] transition-colors ${
+                className={`px-3 py-1.5 text-[12px] font-[510] transition-colors ${
                   mapStyle === opt.value
                     ? 'bg-[#5e6ad2] text-white'
                     : 'bg-transparent text-[#8a8f98] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#d0d6e0]'
@@ -124,14 +102,11 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
               </button>
             ))}
           </div>
-        </div>
-        <div className="flex items-center gap-2" role="group" aria-label={t('filterGroup')}>
-          <span className="hidden text-xs uppercase tracking-[0.08em] text-[#62666d] sm:inline">{t('filterLabel')}</span>
           <select
             value={filter}
             onChange={(e) => setFilter(e.target.value as SensorFilterValue)}
             aria-label={t('filterByAqi')}
-            className="rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-xs font-[510] text-[#d0d6e0] focus:border-[#7170ff] focus:outline-none"
+            className="rounded-md border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.02)] px-3 py-1.5 text-[12px] font-[510] text-[#d0d6e0] focus:border-[#7170ff] focus:outline-none"
           >
             {SENSOR_FILTER_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
@@ -139,12 +114,23 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
               </option>
             ))}
           </select>
+          <div
+            className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-3 py-1.5"
+            role="status"
+            aria-live="polite"
+            aria-label="Live data"
+          >
+            <span className="relative flex h-2 w-2" aria-hidden>
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10b981] opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#10b981]" />
+            </span>
+            <span className="text-[11px] font-[510] tracking-[0.08em] text-[#d0d6e0]">{t('live')}</span>
+          </div>
         </div>
       </div>
 
-      {/* Main map area */}
       <div
-        className="relative z-20 h-[380px] overflow-hidden rounded-b-xl sm:h-[480px] md:h-[560px]"
+        className="relative z-20 h-[420px] overflow-hidden rounded-b-2xl sm:h-[520px] md:h-[620px]"
         style={{ pointerEvents: 'auto' }}
       >
         {error && (
