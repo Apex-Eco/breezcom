@@ -1,16 +1,15 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import Navigation from '@/components/Navigation';
 import Cookies from 'js-cookie';
-import { authAPI } from '@/lib/api';
+import Navigation from '@/components/Navigation';
+import { airQualityAPI, authAPI, type AirQualityData } from '@/lib/api';
+import { useSensorsOnMap } from '@/hooks/useSensorsOnMap';
 
-// Обёртка Globe с forwardRef для корректной работы через next/dynamic
 const Globe = dynamic(
   () => import('react-globe.gl').then((mod) => {
     const GlobeComp = mod.default;
-    // eslint-disable-next-line react/display-name
     const Wrapper = (props: any) => {
       const { innerRef, ...rest } = props;
       return <GlobeComp ref={innerRef} {...rest} />;
@@ -32,64 +31,192 @@ function getAqiColor(aqi: number) {
 
 export default function Map3DPage() {
   const [user, setUser] = useState<any>(null);
-  const [points, setPoints] = useState<any[]>([]);
+  const [airQualityPoints, setAirQualityPoints] = useState<any[]>([]);
   const globeRef = useRef<any>(null);
+  const globeContainerRef = useRef<HTMLDivElement | null>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const { sensors, loading, error } = useSensorsOnMap({
+    userId: user?.id ?? null,
+    refetchIntervalMs: 60_000,
+  });
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   useEffect(() => {
     const token = Cookies.get('token');
-    if (token) {
-      authAPI.getMe().then(setUser).catch(() => Cookies.remove('token'));
-    }
+    if (!token) return;
+
+    authAPI.getMe().then(setUser).catch(() => Cookies.remove('token'));
   }, []);
 
-  const loadData = useCallback(async () => {
-    try {
-      const res = await fetch('/api/map-data');
-      const json = await res.json();
-      if (json?.success && Array.isArray(json.data)) {
-        const pts = json.data.map((item: any, i: number) => {
-          if (!item?.location) return null;
-          const [lat, lng] = item.location.split(',').map((v: string) => parseFloat(v.trim()));
-          if (isNaN(lat) || isNaN(lng)) return null;
-          const p = item.parameters || {};
-          const aqi = item.value || 0;
-          return {
-            lat, lng, aqi,
-            city: item.site || item.sensorId || 'Sensor',
-            country: 'KZ',
-            pm1: p.pm1 ?? 0, pm25: p.pm25 ?? aqi, pm10: p.pm10 ?? 0,
-            co2: p.co2 ?? 0, co: p.co ?? 0, voc: p.voc ?? 0,
-            o3: p.o3 ?? 0, no2: p.no2 ?? 0, ch2o: p.ch2o ?? 0,
-            temp: p.temp ?? 0, hum: p.hum ?? 0,
-            color: getAqiColor(aqi),
-            source: 'sensor',
-          };
-        }).filter(Boolean);
-        setPoints(pts);
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadAirQuality = async () => {
+      try {
+        const data = await airQualityAPI.getAllAirQuality();
+        if (cancelled) return;
+
+        const nextPoints = (Array.isArray(data) ? data : [])
+          .map((item: AirQualityData, index: number) => {
+            const coords = item?.location?.coordinates;
+            if (!coords || coords.length < 2) return null;
+            const [lng, lat] = coords;
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+            const pollution = item.current?.pollution;
+            const weather = item.current?.weather;
+            const aqi = pollution?.aqius ?? 0;
+            return {
+              id: `aq-${item.city}-${item.state}-${index}`,
+              lat,
+              lng,
+              aqi,
+              city: item.sensor_data?.site || item.city || 'Air station',
+              country: item.country || 'KZ',
+              pm1: pollution?.pm1 ?? 0,
+              pm25: pollution?.pm25 ?? aqi,
+              pm10: pollution?.pm10 ?? 0,
+              co2: pollution?.co2 ?? 0,
+              co: pollution?.co ?? 0,
+              voc: pollution?.voc ?? 0,
+              o3: pollution?.o3 ?? 0,
+              no2: pollution?.no2 ?? 0,
+              ch2o: pollution?.ch2o ?? 0,
+              temp: weather?.tp ?? 0,
+              hum: weather?.hu ?? 0,
+              color: getAqiColor(aqi),
+              source: 'air-quality',
+              timestamp: pollution?.ts ?? null,
+            };
+          })
+          .filter((item): item is NonNullable<typeof item> => item !== null);
+
+        setAirQualityPoints(nextPoints);
+      } catch (loadError) {
+        console.warn('Failed to load air-quality points for globe', loadError);
       }
-    } catch (e) {
-      console.error('Failed to load map data:', e);
+    };
+
+    void loadAirQuality();
+    const interval = window.setInterval(loadAirQuality, 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const points = useMemo(
+    () => {
+      const sensorPoints = sensors
+        .filter((sensor) => Number.isFinite(sensor.lat) && Number.isFinite(sensor.lng))
+        .map((sensor) => {
+          const params = sensor.parameters ?? {};
+          return {
+            id: sensor.id,
+            lat: sensor.lat,
+            lng: sensor.lng,
+            aqi: sensor.aqi,
+            city: sensor.name || sensor.site || sensor.city || 'Sensor',
+            country: sensor.country || 'KZ',
+            pm1: params.pm1 ?? 0,
+            pm25: params.pm25 ?? sensor.aqi ?? 0,
+            pm10: params.pm10 ?? 0,
+            co2: params.co2 ?? 0,
+            co: params.co ?? 0,
+            voc: params.voc ?? 0,
+            o3: params.o3 ?? 0,
+            no2: params.no2 ?? 0,
+            ch2o: params.ch2o ?? 0,
+            temp: params.temp ?? 0,
+            hum: params.hum ?? 0,
+            color: getAqiColor(sensor.aqi),
+            source: sensor.isPurchased ? 'purchased' : 'sensor',
+            timestamp: sensor.timestamp ?? null,
+          };
+        });
+
+      const mergedById = new Map<string, any>();
+      airQualityPoints.forEach((point) => mergedById.set(point.id, point));
+      sensorPoints.forEach((point) => mergedById.set(point.id, point));
+      return Array.from(mergedById.values());
+    },
+    [airQualityPoints, sensors]
+  );
+
+  const globePoints = useMemo(() => {
+    if (points.length > 0) {
+      return points;
     }
+
+    return [
+      {
+        id: 'fallback-almaty',
+        lat: 43.238949,
+        lng: 76.889709,
+        aqi: 72,
+        city: 'Almaty',
+        country: 'KZ',
+        pm1: 18,
+        pm25: 28.4,
+        pm10: 46,
+        co2: 462,
+        co: 0.7,
+        voc: 0.31,
+        o3: 19.4,
+        no2: 28.1,
+        ch2o: 0.02,
+        temp: 21.5,
+        hum: 46,
+        color: getAqiColor(72),
+        source: 'fallback',
+        timestamp: new Date().toISOString(),
+      },
+    ];
+  }, [points]);
+
+  useEffect(() => {
+    const node = globeContainerRef.current;
+    if (!node) return;
+
+    const updateViewport = () => {
+      const nextWidth = Math.max(320, Math.floor(node.clientWidth));
+      const nextHeight = Math.max(500, Math.floor(node.clientHeight));
+      setViewport((current) =>
+        current.width === nextWidth && current.height === nextHeight
+          ? current
+          : { width: nextWidth, height: nextHeight }
+      );
+    };
+
+    updateViewport();
+
+    const observer = new ResizeObserver(updateViewport);
+    observer.observe(node);
+
+    return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
-  }, [loadData]);
+    if (!globeRef.current) return;
 
-  // Center globe on Almaty immediately + when data loads
-  useEffect(() => {
-    if (globeRef.current) {
-      globeRef.current.pointOfView({ lat: 43.2220, lng: 76.8512, altitude: 2.0 }, 0);
+    if (globePoints.length === 0) {
+      globeRef.current.pointOfView({ lat: 43.222, lng: 76.8512, altitude: 2.1 }, 0);
+      return;
     }
-  }, []);
 
-  useEffect(() => {
-    if (globeRef.current && points.length > 0) {
-      globeRef.current.pointOfView({ lat: points[0].lat, lng: points[0].lng, altitude: 2.0 }, 1500);
-    }
-  }, [points.length > 0]);
+    const preferredPoint =
+      globePoints.find((point) => point.source !== 'sensor' || point.id !== 'demo-tynysai-marker') ||
+      globePoints[0];
+    globeRef.current.pointOfView(
+      { lat: preferredPoint.lat, lng: preferredPoint.lng, altitude: 2.0 },
+      1200
+    );
+  }, [globePoints]);
 
   return (
     <main className="min-h-screen bg-black relative overflow-hidden">
@@ -103,36 +230,44 @@ export default function Map3DPage() {
         <div className="container mx-auto px-4">
           <div className="mb-6">
             <h1 className="text-4xl md:text-5xl font-black mb-2 bg-gradient-to-r from-white via-green-100 to-cyan-200 bg-clip-text text-transparent">
-              3D Карта
+              3D Map
             </h1>
-            <p className="text-gray-400">Данные датчиков в реальном времени на интерактивном глобусе</p>
+            <p className="text-gray-400">
+              Globe view using the same live sensor set as the dashboard map.
+            </p>
           </div>
 
           <div className="glass-strong rounded-3xl border border-green-500/30 overflow-hidden shadow-2xl">
-            {/* Header */}
             <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-6 py-4 border-b border-green-500/30 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-white font-semibold">{points.length} датчиков на глобусе</span>
+                <span className="text-white font-semibold">{globePoints.length} sensors on the globe</span>
               </div>
-              <span className="text-gray-500 text-xs">обновление каждые 5 сек</span>
+              <span className="text-gray-500 text-xs">refresh every 60 sec</span>
             </div>
 
-            {/* Globe */}
-            <div className="relative flex items-center justify-center" style={{ height: '75vh', minHeight: '500px' }}>
-              {typeof window !== 'undefined' && points.length > 0 ? (
+            <div
+              ref={globeContainerRef}
+              className="relative flex items-center justify-center"
+              style={{ height: '75vh', minHeight: '500px' }}
+            >
+              {isClient && viewport.width > 0 && viewport.height > 0 ? (
                 <Globe
                   innerRef={globeRef}
-                  width={typeof window !== 'undefined' ? Math.min(window.innerWidth - 48, 1200) : 800}
-                  height={typeof window !== 'undefined' ? Math.max(window.innerHeight * 0.75, 500) : 600}
-                  globeImageUrl="//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-                  backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-                  pointsData={points}
+                  width={viewport.width}
+                  height={viewport.height}
+                  globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+                  backgroundImageUrl="https://unpkg.com/three-globe/example/img/night-sky.png"
+                  pointsData={globePoints}
                   pointLat="lat"
                   pointLng="lng"
                   pointAltitude={(d: any) => Math.max(0.02, Math.min(0.4, (d.aqi || 0) / 500))}
                   pointColor="color"
                   pointRadius={0.35}
+                  backgroundColor="rgba(0,0,0,0)"
+                  showAtmosphere
+                  atmosphereColor="#3b82f6"
+                  atmosphereAltitude={0.18}
                   onPointHover={(point: any) => {
                     document.body.style.cursor = point ? 'pointer' : 'default';
                   }}
@@ -160,41 +295,48 @@ export default function Map3DPage() {
                         </div>
                       </div>
                       <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;">
-                        <div><span style="color:#888;">CO₂</span> <span style="font-weight:600;">${d.co2?.toFixed(0) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
+                        <div><span style="color:#888;">CO2</span> <span style="font-weight:600;">${d.co2?.toFixed(0) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
                         <div><span style="color:#888;">CO</span> <span style="font-weight:600;">${d.co?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
-                        <div><span style="color:#888;">CH₂O</span> <span style="font-weight:600;">${d.ch2o?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
+                        <div><span style="color:#888;">CH2O</span> <span style="font-weight:600;">${d.ch2o?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
                         <div><span style="color:#888;">VOC</span> <span style="font-weight:600;">${d.voc?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
-                        <div><span style="color:#888;">O₃</span> <span style="font-weight:600;">${d.o3?.toFixed(1) ?? 0}</span> <span style="color:#666;font-size:9px;">ppb</span></div>
-                        <div><span style="color:#888;">NO₂</span> <span style="font-weight:600;">${d.no2?.toFixed(1) ?? 0}</span> <span style="color:#666;font-size:9px;">ppb</span></div>
+                        <div><span style="color:#888;">O3</span> <span style="font-weight:600;">${d.o3?.toFixed(1) ?? 0}</span> <span style="color:#666;font-size:9px;">ppb</span></div>
+                        <div><span style="color:#888;">NO2</span> <span style="font-weight:600;">${d.no2?.toFixed(1) ?? 0}</span> <span style="color:#666;font-size:9px;">ppb</span></div>
                       </div>
                       <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;margin-top:10px;display:flex;justify-content:space-around;font-size:12px;">
-                        <div><span style="color:#f59e0b;">🌡</span> ${d.temp?.toFixed(1) ?? '—'}°C</div>
-                        <div><span style="color:#3b82f6;">💧</span> ${d.hum?.toFixed(0) ?? '—'}%</div>
+                        <div><span style="color:#f59e0b;">Temp</span> ${d.temp?.toFixed(1) ?? '—'}°C</div>
+                        <div><span style="color:#3b82f6;">Humidity</span> ${d.hum?.toFixed(0) ?? '—'}%</div>
                       </div>
                     </div>
                   `}
                   enablePointerInteraction={true}
                   animateIn={true}
+                  waitForGlobeReady={true}
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500/20 border-t-green-500 mx-auto mb-4" />
-                    <div className="text-green-400 text-lg font-semibold">Загрузка данных...</div>
+                    <div className="text-green-400 text-lg font-semibold">
+                      {loading ? 'Loading globe data...' : 'Preparing globe...'}
+                    </div>
                   </div>
                 </div>
               )}
+              {!loading && error ? (
+                <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs text-gray-300 backdrop-blur-md">
+                  {error}
+                </div>
+              ) : null}
             </div>
 
-            {/* Legend */}
             <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-6 py-3 border-t border-green-500/30">
               <div className="flex flex-wrap items-center gap-4 justify-center text-xs text-gray-400">
                 {[
-                  { color: '#00e400', label: 'Хорошо (0-50)' },
-                  { color: '#ffff00', label: 'Умеренно (51-100)' },
-                  { color: '#ff7e00', label: 'Нездорово (101-150)' },
-                  { color: '#ff0000', label: 'Опасно (151-200)' },
-                  { color: '#8f3f97', label: 'Очень опасно (201+)' },
+                  { color: '#00e400', label: 'Good (0-50)' },
+                  { color: '#ffff00', label: 'Moderate (51-100)' },
+                  { color: '#ff7e00', label: 'Unhealthy (101-150)' },
+                  { color: '#ff0000', label: 'Dangerous (151-200)' },
+                  { color: '#8f3f97', label: 'Very dangerous (201+)' },
                 ].map((item) => (
                   <div key={item.color} className="flex items-center gap-1.5">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
