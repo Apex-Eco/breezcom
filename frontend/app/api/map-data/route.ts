@@ -1,18 +1,30 @@
 import { NextResponse } from 'next/server';
 import postgres from 'postgres';
 
+const normalizePostgresUrl = (value: string): string =>
+  value
+    .replace(/^postgresql\+asyncpg:\/\//, 'postgresql://')
+    .replace(/^postgres\+asyncpg:\/\//, 'postgres://');
+
 // Подключение к базе данных data-tynys-postgres-1
 const getDbConnection = () => {
+  const directUrl =
+    process.env.TYNYS_DB_URL ||
+    process.env.DB_URL ||
+    process.env.DATABASE_URL;
+
+  if (directUrl) {
+    return postgres(normalizePostgresUrl(directUrl), { max: 1 });
+  }
+
   // По умолчанию используем localhost, так как приложение работает на хосте
-  const dbHost = process.env.TYNYS_DB_HOST || 'localhost';
-  const dbPort = process.env.TYNYS_DB_PORT || '5435';
-  const dbUser = process.env.TYNYS_DB_USER || 'aq';
-  const dbPassword = process.env.TYNYS_DB_PASSWORD || 'very_strong_password';
-  const dbName = process.env.TYNYS_DB_NAME || 'aqdb';
-  
-  const dbUrl = process.env.TYNYS_DB_URL || 
-    `postgresql://${dbUser}:${dbPassword}@${dbHost}:${dbPort}/${dbName}`;
-  
+  const dbHost = process.env.TYNYS_DB_HOST || process.env.PGHOST || process.env.POSTGRES_HOST || '127.0.0.1';
+  const dbPort = process.env.TYNYS_DB_PORT || process.env.PGPORT || process.env.POSTGRES_PORT || '5432';
+  const dbUser = process.env.TYNYS_DB_USER || process.env.PGUSER || process.env.POSTGRES_USER || 'iqair_user';
+  const dbPassword = process.env.TYNYS_DB_PASSWORD || process.env.PGPASSWORD || process.env.POSTGRES_PASSWORD || 'zwNxu4QJzMc35yN2';
+  const dbName = process.env.TYNYS_DB_NAME || process.env.PGDATABASE || process.env.POSTGRES_DB || 'iqair';
+
+  const dbUrl = `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
   return postgres(dbUrl, { max: 1 });
 };
 
