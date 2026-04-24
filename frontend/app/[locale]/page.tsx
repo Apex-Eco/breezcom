@@ -1,36 +1,13 @@
 'use client';
 
-import dynamic from 'next/dynamic';
 import { useEffect, useState, useRef } from 'react';
-import { authAPI, airQualityAPI, AirQualityData } from '@/lib/api';
-import { useSensorsOnMap, type MapSensor } from '@/hooks/useSensorsOnMap';
-import AirQualityCard from '@/components/AirQualityCard';
-import { SensorDetailPanel } from '@/components/map/SensorDetailPanel';
+import { authAPI } from '@/lib/api';
+import { useSensorsOnMap } from '@/hooks/useSensorsOnMap';
 import AuthModal from '@/components/AuthModal';
 import Navigation from '@/components/Navigation';
 import Cookies from 'js-cookie';
 import { useTranslations } from 'next-intl';
-
-const MapCard = dynamic(
-  () =>
-    import('@/components/map/MapCard')
-      .then((m) => ({ default: m.MapCard }))
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        const isChunkError = /ChunkLoadError|Loading chunk/i.test(message);
-
-        if (typeof window !== 'undefined' && isChunkError) {
-          const retryKey = 'mapcard_chunk_retry_done';
-          if (!sessionStorage.getItem(retryKey)) {
-            sessionStorage.setItem(retryKey, '1');
-            window.location.reload();
-          }
-        }
-
-        throw error;
-      }),
-  { ssr: false }
-);
+import { Link } from '@/i18n/navigation';
 
 export default function Home() {
   const t = useTranslations('home');
@@ -38,42 +15,12 @@ export default function Home() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false);
-  const [selectedSensor, setSelectedSensor] = useState<MapSensor | null>(null);
   const heroRef = useRef<HTMLDivElement>(null);
-  const cardRef = useRef<HTMLDivElement>(null);
 
-  // Загружаем данные со всех источников, включая данные из БД
-  const { sensors, loading: mapLoading, error: mapError, refetch: refetchMap } =
-    useSensorsOnMap({
-      userId: user?.id ?? null,
-      refetchIntervalMs: 5000,
-    });
-
-  // Auto-select first sensor or update selected sensor with fresh data
-  useEffect(() => {
-    if (sensors.length === 0) return;
-    setSelectedSensor((previous) => {
-      if (!previous) return sensors[0];
-      const updated = sensors.find((sensor) => sensor.id === previous.id);
-      return updated ?? sensors[0];
-    });
-  }, [sensors]);
-
-  // Separate fetch for the AirQualityCard sidebar (not rendered on the map)
-  const [allAirQuality, setAllAirQuality] = useState<AirQualityData[]>([]);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    airQualityAPI.getAllAirQuality()
-      .then((data) => {
-        if (!cancelled) setAllAirQuality(data || []);
-      })
-      .catch((error) => {
-        console.error('[air-quality] getAllAirQuality failed', error);
-      });
-    return () => { cancelled = true; };
-  }, [user]);
+  const { sensors } = useSensorsOnMap({
+    userId: user?.id ?? null,
+    refetchIntervalMs: 60_000,
+  });
 
   useEffect(() => {
     checkAuth();
@@ -192,30 +139,30 @@ export default function Home() {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(0,255,136,0.15),transparent_60%)]" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(0,212,255,0.1),transparent_60%)]" />
             </div>
-            <div ref={heroRef} className="relative container mx-auto px-4 py-16 md:py-24 border-b border-green-500/20 scroll-reveal">
-              <div className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-green-500/20 via-emerald-500/20 to-cyan-500/20 border border-green-500/40 rounded-full text-sm font-medium text-green-300 mb-8 backdrop-blur-md shadow-lg shadow-green-500/10 float-animation">
+            <div ref={heroRef} className="relative container mx-auto px-4 py-14 md:py-20 border-b border-green-500/20 scroll-reveal">
+              <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-2 text-[12px] font-[510] tracking-[0.08em] text-green-300 mb-7 backdrop-blur-md">
                 <div className="relative">
                   <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
                   <div className="absolute inset-0 w-2.5 h-2.5 bg-green-400 rounded-full animate-ping opacity-75" />
                 </div>
                 <span className="tracking-wide">{t('realtimeBadge')}</span>
               </div>
-              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-9xl font-black mb-6 md:mb-8 leading-tight">
-                <span className="bg-gradient-to-r from-white via-green-100 via-emerald-200 to-cyan-200 bg-clip-text text-transparent block mb-2">
+              <h1 className="max-w-5xl text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-[510] tracking-[-0.04em] mb-6 md:mb-7 leading-[0.96]">
+                <span className="bg-gradient-to-r from-white via-green-100 via-emerald-200 to-cyan-200 bg-clip-text text-transparent block mb-3">
                   {t('airQuality')}
                 </span>
                 <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent block">
                   {t('inAlmaty')}
                 </span>
               </h1>
-              <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 max-w-3xl leading-relaxed mb-8 md:mb-12">
+              <p className="text-[15px] sm:text-[16px] md:text-[18px] text-[#d0d6e0] max-w-3xl leading-[1.6] mb-8 md:mb-10">
                 {t('subtitle')}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <div className="px-5 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl text-white font-bold shadow-2xl shadow-green-500/30 hover:scale-105 transition-transform cursor-pointer text-center text-sm sm:text-base">
+                <div className="px-5 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-md text-white font-[510] shadow-2xl shadow-green-500/30 transition-transform cursor-pointer text-center text-[14px] sm:text-[15px]">
                   {t('startMonitoring')}
                 </div>
-                <div className="px-5 sm:px-6 py-2.5 sm:py-3 border-2 border-green-500/50 rounded-xl text-green-400 font-bold hover:bg-green-500/10 transition-all cursor-pointer text-center text-sm sm:text-base">
+                <div className="px-5 sm:px-6 py-2.5 sm:py-3 border border-[rgba(255,255,255,0.08)] rounded-md text-[#d0d6e0] font-[510] hover:bg-white/5 transition-all cursor-pointer text-center text-[14px] sm:text-[15px]">
                   {t('learnMore')}
                 </div>
               </div>
@@ -223,24 +170,56 @@ export default function Home() {
           </div>
 
           <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 md:py-16 section-transition">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8 mb-6 sm:mb-8">
-              <div className="lg:col-span-2">
-                <MapCard sensors={sensors} loading={mapLoading} error={mapError} onRefetch={refetchMap} onSensorClick={setSelectedSensor} />
-              </div>
-              <div className="space-y-6">
-                {selectedSensor ? (
-                  <SensorDetailPanel sensor={selectedSensor} />
-                ) : allAirQuality.length > 0 ? (
-                  <div ref={cardRef} className="scroll-reveal">
-                    <AirQualityCard data={allAirQuality[0]} />
+            <div className="mb-8 md:mb-12 grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+              <section className="glass rounded-3xl border border-green-500/20 p-6 md:p-8">
+                <div className="mb-5 flex items-center justify-between gap-4">
+                  <div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-green-300/80">Command Center</div>
+                    <h2 className="mt-2 text-2xl font-black text-white md:text-3xl">Live map routes and sensor coverage</h2>
                   </div>
-                ) : (
-                  <div className="glass-strong rounded-3xl border border-green-500/30 p-8 text-center">
-                    <div className="text-4xl mb-3">📍</div>
-                    <p className="text-gray-400 text-sm">Нажмите на датчик на карте для просмотра данных</p>
+                  <div className="rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm text-green-200">
+                    Updates every 60 sec
                   </div>
-                )}
-              </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  <Link href="/2dmap" className="group rounded-2xl border border-cyan-500/20 bg-[linear-gradient(135deg,rgba(6,182,212,0.16),rgba(15,23,42,0.8))] p-5 hover:border-cyan-400/40 transition">
+                    <div className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">Route</div>
+                    <div className="mt-2 text-2xl font-black text-white">2D Map</div>
+                    <p className="mt-2 text-sm text-gray-300">Full-screen Leaflet view with live sensor details.</p>
+                  </Link>
+                  <Link href="/3d-map" className="group rounded-2xl border border-green-500/20 bg-[linear-gradient(135deg,rgba(34,197,94,0.15),rgba(15,23,42,0.8))] p-5 hover:border-green-400/40 transition">
+                    <div className="text-xs uppercase tracking-[0.2em] text-green-200/80">Route</div>
+                    <div className="mt-2 text-2xl font-black text-white">3D Globe</div>
+                    <p className="mt-2 text-sm text-gray-300">Global view for seeded locations and live air-quality points.</p>
+                  </Link>
+                  <Link href="/sensors" className="group rounded-2xl border border-emerald-500/20 bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(15,23,42,0.8))] p-5 hover:border-emerald-400/40 transition">
+                    <div className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Access</div>
+                    <div className="mt-2 text-2xl font-black text-white">Sensors</div>
+                    <p className="mt-2 text-sm text-gray-300">Open sensor inventory and manage the available monitoring points.</p>
+                  </Link>
+                </div>
+              </section>
+
+              <section className="glass rounded-3xl border border-white/10 p-6 md:p-8">
+                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Live Snapshot</div>
+                <div className="mt-5 space-y-4">
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Tracked sensors</div>
+                    <div className="mt-2 text-4xl font-black text-white">{sensors.length}</div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Average AQI</div>
+                    <div className="mt-2 text-4xl font-black text-white">
+                      {sensors.length > 0 ? Math.round(sensors.reduce((sum, s) => sum + s.aqi, 0) / sensors.length) : 0}
+                    </div>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Refresh cycle</div>
+                    <div className="mt-2 text-4xl font-black text-white">60s</div>
+                  </div>
+                </div>
+              </section>
             </div>
 
             {sensors.length > 0 && (
