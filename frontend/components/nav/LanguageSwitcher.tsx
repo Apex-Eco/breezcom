@@ -23,7 +23,7 @@ export function LanguageSwitcher() {
 
   return (
     <div
-      className="flex items-center rounded-lg border border-white/10 overflow-hidden"
+      className="flex items-center rounded-full border border-theme overflow-hidden bg-surface"
       role="group"
       aria-label={t('changeLanguage')}
     >
@@ -36,10 +36,10 @@ export function LanguageSwitcher() {
           aria-label={`${t('changeLanguage')}: ${t(`language.${loc}`)}`}
           className={clsx(
             'px-3 py-1.5 text-xs font-bold transition-all min-w-[40px]',
-            'focus:outline-none focus:ring-2 focus:ring-green-500/50 focus:ring-offset-2 focus:ring-offset-black',
+            'focus:outline-none focus:ring-2 focus:ring-green-500/50',
             locale === loc
-              ? 'bg-green-500/30 text-green-200 border-green-500/50'
-              : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300'
+              ? 'bg-[#9fe870] text-[#163300]'
+              : 'text-muted hover:bg-green-500/10 hover:text-primary'
           )}
         >
           {t(`language.${loc}`)}

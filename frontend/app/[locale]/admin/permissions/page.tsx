@@ -70,7 +70,7 @@ export default function AdminPermissionsPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-black text-red-400">Загрузка...</div>;
+    return <div className="min-h-screen flex items-center justify-center page-shell text-red-400">Загрузка...</div>;
   }
 
   if (!isAuthenticated) {
@@ -79,7 +79,7 @@ export default function AdminPermissionsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className="min-h-screen page-shell relative overflow-hidden">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.05),transparent_70%)]"></div>
@@ -91,7 +91,7 @@ export default function AdminPermissionsPage() {
             <div className="flex items-center space-x-6">
               <Link href="/admin" className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-xl font-black text-white">⚙️</span>
+                  <span className="text-xl font-black text-primary">⚙️</span>
                 </div>
                 <span className="text-2xl font-black bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">Админ Панель</span>
               </Link>
@@ -111,19 +111,19 @@ export default function AdminPermissionsPage() {
 
       <div className="relative z-10 pt-8 pb-8">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-black mb-6 bg-gradient-to-r from-white via-red-100 to-orange-200 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-black mb-6 wise-gradient-text">
             Управление правами доступа
           </h1>
 
           <div className="glass-strong rounded-2xl border border-red-500/30 p-6 mb-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Выдать доступ к датчику</h2>
+            <h2 className="text-2xl font-bold text-primary mb-4">Выдать доступ к датчику</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2">Выберите датчик</label>
+                <label className="block text-sm font-bold text-secondary mb-2">Выберите датчик</label>
                 <select
                   value={grantSensorId}
                   onChange={(e) => setGrantSensorId(e.target.value)}
-                  className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-[#0f0f0f] text-white"
+                  className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
                 >
                   <option value="">-- Выберите датчик --</option>
                   {sensors.map((s) => (
@@ -134,18 +134,18 @@ export default function AdminPermissionsPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-bold text-gray-300 mb-2">Email пользователя</label>
+                <label className="block text-sm font-bold text-secondary mb-2">Email пользователя</label>
                 <input
                   type="email"
                   value={grantEmail}
                   onChange={(e) => setGrantEmail(e.target.value)}
                   placeholder="user@example.com"
-                  className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-[#0f0f0f] text-white"
+                  className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
                 />
               </div>
               <button
                 onClick={handleGrantAccess}
-                className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
+                className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-primary rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
               >
                 Выдать доступ
               </button>
@@ -154,11 +154,11 @@ export default function AdminPermissionsPage() {
 
           <div className="glass-strong rounded-2xl border border-red-500/30 overflow-hidden">
             <div className="p-6 border-b border-red-500/20">
-              <h2 className="text-2xl font-bold text-white">Права пользователей</h2>
+              <h2 className="text-2xl font-bold text-primary">Права пользователей</h2>
             </div>
             <div className="p-6">
               {users.filter(u => (u.sensor_permissions?.length || 0) > 0).length === 0 ? (
-                <div className="text-center py-12 text-gray-400">
+                <div className="text-center py-12 text-muted">
                   <p>Нет пользователей с правами доступа</p>
                 </div>
               ) : (
@@ -166,11 +166,11 @@ export default function AdminPermissionsPage() {
                   {users
                     .filter(u => (u.sensor_permissions?.length || 0) > 0)
                     .map((u) => (
-                      <div key={u.id} className="p-4 bg-[#0f0f0f] rounded-xl border border-gray-700/50">
+                      <div key={u.id} className="p-4 bg-surface rounded-xl border border-gray-700/50">
                         <div className="flex items-center justify-between mb-2">
                           <div>
-                            <h3 className="text-white font-bold">{u.name}</h3>
-                            <p className="text-gray-400 text-sm">{u.email}</p>
+                            <h3 className="text-primary font-bold">{u.name}</h3>
+                            <p className="text-muted text-sm">{u.email}</p>
                           </div>
                           <span className="text-red-400 font-bold">
                             {u.sensor_permissions?.length || 0} датчиков

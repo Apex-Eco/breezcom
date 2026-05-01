@@ -659,7 +659,7 @@ export function MapView({
       <div className="pointer-events-none absolute inset-0 z-[500]">
         <div className="pointer-events-auto absolute left-4 top-4">
           {mapActionHref ? (
-            <div className="inline-flex items-center rounded-full bg-[#b8962e] px-1 py-1 text-sm text-white shadow-lg">
+            <div className="inline-flex items-center rounded-full bg-[#b8962e] px-1 py-1 text-sm text-primary shadow-lg">
               <Link
                 href={mapActionHref}
                 className="rounded-full px-3 py-1 font-medium hover:bg-black/20"
@@ -698,7 +698,7 @@ export function MapView({
             {IQAIR_LEGEND.map((segment) => (
               <div
                 key={segment.label}
-                className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-white sm:text-[11px]"
+                className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-primary sm:text-[11px]"
                 style={{ backgroundColor: segment.color }}
               >
                 {segment.label}

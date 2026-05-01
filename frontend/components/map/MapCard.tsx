@@ -59,7 +59,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
   // [restyle]
   return (
     <article
-      className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0f1011] scroll-reveal"
+      className="relative overflow-hidden rounded-2xl border border-theme bg-[#0f1011] scroll-reveal"
       style={{
         boxShadow:
           'rgba(0,0,0,0.2) 0px 0px 0px 1px, rgba(0,0,0,0.4) 0px 2px 4px',
@@ -94,7 +94,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
                 aria-label={`${t('styleGroup')}: ${t(opt.labelKey)}`}
                 className={`px-3 py-1.5 text-[12px] font-[510] transition-colors ${
                   mapStyle === opt.value
-                    ? 'bg-[#5e6ad2] text-white'
+                    ? 'bg-[#5e6ad2] text-primary'
                     : 'bg-transparent text-[#8a8f98] hover:bg-[rgba(255,255,255,0.04)] hover:text-[#d0d6e0]'
                 }`}
               >
@@ -151,7 +151,7 @@ export function MapCard({ sensors, loading, error, onRefetch, onSensorClick }: M
           </div>
         )}
         {loading && sensors.length === 0 ? (
-          <div className="flex h-full items-center justify-center rounded-b-xl bg-[#08090a]" aria-busy="true">
+          <div className="flex h-full items-center justify-center rounded-b-xl bg-surface" aria-busy="true">
             <div
               className="h-12 w-12 animate-spin rounded-full border-2 border-[rgba(255,255,255,0.08)] border-t-[#5e6ad2]"
               aria-hidden

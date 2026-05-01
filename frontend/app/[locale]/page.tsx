@@ -104,7 +104,7 @@ export default function Home() {
   if (loading && !user) {
     return (
       <div className="min-h-screen flex items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-black via-[#0f0f1a] via-[#1a1a2e] to-black" />
+        <div className="absolute inset-0 page-shell" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(0,255,136,0.1),transparent_70%)] animate-pulse" />
         <div className="relative text-center z-10">
           <div className="relative mb-8">
@@ -114,7 +114,7 @@ export default function Home() {
             <div className="absolute inset-4 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/20 blur-xl animate-pulse" />
           </div>
           <div className="text-green-400 font-bold text-xl mb-2 tracking-wide">{tCommon('loading')}</div>
-          <div className="text-gray-400 text-sm">{tCommon('connectingSensors')}</div>
+          <div className="text-muted text-sm">{tCommon('connectingSensors')}</div>
           <div className="mt-4 flex justify-center gap-1">
             <div className="w-2 h-2 bg-green-400 rounded-full animate-bounce" style={{ animationDelay: '0s' }} />
             <div className="w-2 h-2 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }} />
@@ -126,7 +126,7 @@ export default function Home() {
   }
 
   return (
-    <main className="min-h-screen bg-black">
+    <main className="min-h-screen page-shell">
       {showAuth && !user ? (
         <AuthModal onLogin={handleLogin} onRegister={handleRegister} onClose={() => {}} />
       ) : (
@@ -139,30 +139,30 @@ export default function Home() {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(0,255,136,0.15),transparent_60%)]" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(0,212,255,0.1),transparent_60%)]" />
             </div>
-            <div ref={heroRef} className="relative container mx-auto px-4 py-14 md:py-20 border-b border-green-500/20 scroll-reveal">
-              <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] px-4 py-2 text-[12px] font-[510] tracking-[0.08em] text-green-300 mb-7 backdrop-blur-md">
+            <div ref={heroRef} className="relative container mx-auto px-4 py-14 md:py-20 border-b border-theme scroll-reveal">
+              <div className="inline-flex items-center gap-2 rounded-full border border-theme bg-surface px-4 py-2 text-[12px] font-bold tracking-[0.08em] text-green-300 mb-7 backdrop-blur-md">
                 <div className="relative">
                   <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
                   <div className="absolute inset-0 w-2.5 h-2.5 bg-green-400 rounded-full animate-ping opacity-75" />
                 </div>
                 <span className="tracking-wide">{t('realtimeBadge')}</span>
               </div>
-              <h1 className="max-w-5xl text-4xl sm:text-5xl md:text-6xl xl:text-7xl font-[510] tracking-[-0.04em] mb-6 md:mb-7 leading-[0.96]">
-                <span className="bg-gradient-to-r from-white via-green-100 via-emerald-200 to-cyan-200 bg-clip-text text-transparent block mb-3">
+              <h1 className="wise-heading max-w-5xl text-5xl sm:text-6xl md:text-7xl xl:text-8xl mb-6 md:mb-7">
+                <span className="wise-gradient-text block mb-3">
                   {t('airQuality')}
                 </span>
-                <span className="bg-gradient-to-r from-green-400 via-emerald-400 to-cyan-400 bg-clip-text text-transparent block">
+                <span className="text-[#9fe870] block">
                   {t('inAlmaty')}
                 </span>
               </h1>
-              <p className="text-[15px] sm:text-[16px] md:text-[18px] text-[#d0d6e0] max-w-3xl leading-[1.6] mb-8 md:mb-10">
+              <p className="text-[15px] sm:text-[16px] md:text-[18px] text-secondary max-w-3xl leading-[1.6] mb-8 md:mb-10">
                 {t('subtitle')}
               </p>
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-                <div className="px-5 sm:px-6 py-2.5 sm:py-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-md text-white font-[510] shadow-2xl shadow-green-500/30 transition-transform cursor-pointer text-center text-[14px] sm:text-[15px]">
+                <div className="wise-btn px-5 sm:px-6 py-2.5 sm:py-3 cursor-pointer text-center text-[14px] sm:text-[15px]">
                   {t('startMonitoring')}
                 </div>
-                <div className="px-5 sm:px-6 py-2.5 sm:py-3 border border-[rgba(255,255,255,0.08)] rounded-md text-[#d0d6e0] font-[510] hover:bg-white/5 transition-all cursor-pointer text-center text-[14px] sm:text-[15px]">
+                <div className="wise-btn-secondary px-5 sm:px-6 py-2.5 sm:py-3 cursor-pointer text-center text-[14px] sm:text-[15px]">
                   {t('learnMore')}
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function Home() {
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <div>
                     <div className="text-xs font-semibold uppercase tracking-[0.24em] text-green-300/80">Command Center</div>
-                    <h2 className="mt-2 text-2xl font-black text-white md:text-3xl">Live map routes and sensor coverage</h2>
+                    <h2 className="mt-2 text-2xl font-black text-primary md:text-3xl">Live map routes and sensor coverage</h2>
                   </div>
                   <div className="rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm text-green-200">
                     Updates every 60 sec
@@ -185,38 +185,38 @@ export default function Home() {
                 <div className="grid gap-4 md:grid-cols-3">
                   <Link href="/2dmap" className="group rounded-2xl border border-cyan-500/20 bg-[linear-gradient(135deg,rgba(6,182,212,0.16),rgba(15,23,42,0.8))] p-5 hover:border-cyan-400/40 transition">
                     <div className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">Route</div>
-                    <div className="mt-2 text-2xl font-black text-white">2D Map</div>
-                    <p className="mt-2 text-sm text-gray-300">Full-screen Leaflet view with live sensor details.</p>
+                    <div className="mt-2 text-2xl font-black text-primary">2D Map</div>
+                    <p className="mt-2 text-sm text-secondary">Full-screen Leaflet view with live sensor details.</p>
                   </Link>
                   <Link href="/3d-map" className="group rounded-2xl border border-green-500/20 bg-[linear-gradient(135deg,rgba(34,197,94,0.15),rgba(15,23,42,0.8))] p-5 hover:border-green-400/40 transition">
                     <div className="text-xs uppercase tracking-[0.2em] text-green-200/80">Route</div>
-                    <div className="mt-2 text-2xl font-black text-white">3D Globe</div>
-                    <p className="mt-2 text-sm text-gray-300">Global view for seeded locations and live air-quality points.</p>
+                    <div className="mt-2 text-2xl font-black text-primary">3D Globe</div>
+                    <p className="mt-2 text-sm text-secondary">Global view for seeded locations and live air-quality points.</p>
                   </Link>
                   <Link href="/sensors" className="group rounded-2xl border border-emerald-500/20 bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(15,23,42,0.8))] p-5 hover:border-emerald-400/40 transition">
                     <div className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Access</div>
-                    <div className="mt-2 text-2xl font-black text-white">Sensors</div>
-                    <p className="mt-2 text-sm text-gray-300">Open sensor inventory and manage the available monitoring points.</p>
+                    <div className="mt-2 text-2xl font-black text-primary">Sensors</div>
+                    <p className="mt-2 text-sm text-secondary">Open sensor inventory and manage the available monitoring points.</p>
                   </Link>
                 </div>
               </section>
 
-              <section className="glass rounded-3xl border border-white/10 p-6 md:p-8">
-                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-gray-400">Live Snapshot</div>
+              <section className="glass rounded-3xl border border-theme p-6 md:p-8">
+                <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Live Snapshot</div>
                 <div className="mt-5 space-y-4">
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Tracked sensors</div>
-                    <div className="mt-2 text-4xl font-black text-white">{sensors.length}</div>
+                  <div className="rounded-2xl border border-theme bg-white/5 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Tracked sensors</div>
+                    <div className="mt-2 text-4xl font-black text-primary">{sensors.length}</div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Average AQI</div>
-                    <div className="mt-2 text-4xl font-black text-white">
+                  <div className="rounded-2xl border border-theme bg-white/5 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Average AQI</div>
+                    <div className="mt-2 text-4xl font-black text-primary">
                       {sensors.length > 0 ? Math.round(sensors.reduce((sum, s) => sum + s.aqi, 0) / sensors.length) : 0}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-gray-400">Refresh cycle</div>
-                    <div className="mt-2 text-4xl font-black text-white">60s</div>
+                  <div className="rounded-2xl border border-theme bg-white/5 p-4">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Refresh cycle</div>
+                    <div className="mt-2 text-4xl font-black text-primary">60s</div>
                   </div>
                 </div>
               </section>
@@ -228,7 +228,7 @@ export default function Home() {
                   <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10">
                     <div className="text-5xl font-black text-green-400 mb-3">{sensors.length}</div>
-                    <div className="text-gray-400 text-sm font-medium uppercase tracking-wide">{t('activeSensorsCount')}</div>
+                    <div className="text-muted text-sm font-medium uppercase tracking-wide">{t('activeSensorsCount')}</div>
                   </div>
                 </div>
                 <div className="glass rounded-2xl p-8 border border-emerald-500/20 hover-lift scale-in group relative overflow-hidden" style={{ transitionDelay: '0.1s' }}>
@@ -237,14 +237,14 @@ export default function Home() {
                     <div className="text-5xl font-black text-emerald-400 mb-3">
                       {sensors.length > 0 ? Math.round(sensors.reduce((sum, s) => sum + s.aqi, 0) / sensors.length) : 0}
                     </div>
-                    <div className="text-gray-400 text-sm font-medium uppercase tracking-wide">{t('avgAqi')}</div>
+                    <div className="text-muted text-sm font-medium uppercase tracking-wide">{t('avgAqi')}</div>
                   </div>
                 </div>
                 <div className="glass rounded-2xl p-8 border border-cyan-500/20 hover-lift scale-in group relative overflow-hidden" style={{ transitionDelay: '0.2s' }}>
                   <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                   <div className="relative z-10">
                     <div className="text-5xl font-black text-cyan-400 mb-3">24/7</div>
-                    <div className="text-gray-400 text-sm font-medium uppercase tracking-wide">{t('monitoring')}</div>
+                    <div className="text-muted text-sm font-medium uppercase tracking-wide">{t('monitoring')}</div>
                   </div>
                 </div>
               </div>

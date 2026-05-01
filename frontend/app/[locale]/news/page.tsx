@@ -35,17 +35,17 @@ export default function NewsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-black">
+    <div className="min-h-screen page-shell">
       <Navigation user={null} onLogout={() => {}} />
       
       <div className="container mx-auto px-4 py-12">
         <div className="mb-8 md:mb-12 text-center">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-white mb-3 md:mb-4">
-            <span className="bg-gradient-to-r from-white via-green-100 to-cyan-200 bg-clip-text text-transparent">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black text-primary mb-3 md:mb-4">
+            <span className="wise-gradient-text">
               Новости и исследования
             </span>
           </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-400 max-w-2xl mx-auto px-4">
+          <p className="text-base sm:text-lg md:text-xl text-muted max-w-2xl mx-auto px-4">
             Последние новости о качестве воздуха, исследования и полезные статьи
           </p>
         </div>
@@ -55,7 +55,7 @@ export default function NewsPage() {
           {['Все', 'Новости', 'Исследования', 'Блог', 'Пресс-релизы'].map((cat) => (
             <button
               key={cat}
-              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg text-white font-semibold hover:scale-105 transition-transform text-sm sm:text-base"
+              className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/30 rounded-lg text-primary font-semibold hover:scale-105 transition-transform text-sm sm:text-base"
             >
               {cat}
             </button>
@@ -72,9 +72,9 @@ export default function NewsPage() {
                 </div>
               </div>
               <div className="p-6">
-                <div className="text-gray-400 text-sm mb-3">{item.date}</div>
-                <h2 className="text-2xl font-bold text-white mb-4">{item.title}</h2>
-                <p className="text-gray-300 mb-6">{item.excerpt}</p>
+                <div className="text-muted text-sm mb-3">{item.date}</div>
+                <h2 className="text-2xl font-bold text-primary mb-4">{item.title}</h2>
+                <p className="text-secondary mb-6">{item.excerpt}</p>
                 <button className="text-green-400 font-semibold hover:text-green-300 transition-colors">
                   Читать далее →
                 </button>

@@ -201,7 +201,7 @@ function createPointIcon(value: number) {
     AQI_BREAKPOINTS.find((b) => value <= b.limit) ??
     AQI_BREAKPOINTS[AQI_BREAKPOINTS.length - 1];
   const html = `
-    <div class="flex items-center justify-center rounded-full text-[10px] font-semibold text-white shadow-lg border border-white/20 ${bp.tw}"
+    <div class="flex items-center justify-center rounded-full text-[10px] font-semibold text-primary shadow-lg border border-white/20 ${bp.tw}"
          style="width:28px;height:28px;">
       ${Math.round(value)}
     </div>
@@ -233,7 +233,7 @@ function createClusterIcon(cluster: MarkerCluster) {
   const size = Math.min(44 + values.length, 76);
 
   const html = `
-    <div class="flex items-center justify-center rounded-full text-xs font-semibold text-white shadow-lg border border-white/20 ${bp.tw}"
+    <div class="flex items-center justify-center rounded-full text-xs font-semibold text-primary shadow-lg border border-white/20 ${bp.tw}"
          style="width:${size}px;height:${size}px;">
       ${values.length}
     </div>
@@ -844,7 +844,7 @@ export function AirQualityMap({
 
       <div className="pointer-events-none absolute inset-0 z-30">
         <div className="pointer-events-auto absolute left-4 top-4">
-          <div className="inline-flex items-center rounded-full bg-[#b8962e] px-3 py-1 text-sm text-white shadow-lg">
+          <div className="inline-flex items-center rounded-full bg-[#b8962e] px-3 py-1 text-sm text-primary shadow-lg">
             <span>🗺 Breez Map</span>
             <button
               type="button"
@@ -890,7 +890,7 @@ export function AirQualityMap({
             {LEGEND_SEGMENTS.map((segment) => (
               <div
                 key={segment.label}
-                className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-white sm:text-[11px]"
+                className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-primary sm:text-[11px]"
                 style={{ backgroundColor: segment.bg }}
               >
                 {segment.label}

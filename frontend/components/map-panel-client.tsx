@@ -32,7 +32,7 @@ export function MapPanel({
         </div>
 
         <div className="relative">
-          <div className="rounded-2xl border border-green-500/20 bg-black">
+          <div className="rounded-2xl border border-green-500/20 bg-surface">
             <AirQualityMap
               readings={readings}
               emptyStateText={emptyMapText}

@@ -46,7 +46,7 @@ export default function AlmatyMap() {
             </div>
           )}
           {loading && sensors.length === 0 ? (
-            <div className="flex h-full items-center justify-center rounded-2xl bg-[#08090a]">
+            <div className="flex h-full items-center justify-center rounded-2xl bg-surface">
               <div className="h-12 w-12 animate-spin rounded-full border-2 border-[rgba(255,255,255,0.08)] border-t-[#5e6ad2]" />
             </div>
           ) : (

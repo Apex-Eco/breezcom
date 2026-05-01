@@ -63,7 +63,7 @@ export default function AdminUsersPage() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center bg-black text-red-400">Загрузка...</div>;
+    return <div className="min-h-screen flex items-center justify-center page-shell text-red-400">Загрузка...</div>;
   }
 
   if (!isAuthenticated) {
@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black relative overflow-hidden">
+    <div className="min-h-screen page-shell relative overflow-hidden">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.05),transparent_70%)]"></div>
@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
             <div className="flex items-center space-x-6">
               <Link href="/admin" className="flex items-center space-x-3">
                 <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-xl font-black text-white">⚙️</span>
+                  <span className="text-xl font-black text-primary">⚙️</span>
                 </div>
                 <span className="text-2xl font-black bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">Админ Панель</span>
               </Link>
@@ -104,23 +104,23 @@ export default function AdminUsersPage() {
 
       <div className="relative z-10 pt-8 pb-8">
         <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-black mb-6 bg-gradient-to-r from-white via-red-100 to-orange-200 bg-clip-text text-transparent">
+          <h1 className="text-4xl font-black mb-6 wise-gradient-text">
             Управление пользователями
           </h1>
 
           <div className="glass-strong rounded-2xl border border-red-500/30 p-6 mb-6">
-            <h2 className="text-2xl font-bold text-white mb-4">Сделать пользователя админом</h2>
+            <h2 className="text-2xl font-bold text-primary mb-4">Сделать пользователя админом</h2>
             <div className="flex gap-4">
               <input
                 type="email"
                 value={makeAdminEmail}
                 onChange={(e) => setMakeAdminEmail(e.target.value)}
                 placeholder="email@example.com"
-                className="flex-1 px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-[#0f0f0f] text-white"
+                className="flex-1 px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
               />
               <button
                 onClick={handleMakeAdmin}
-                className="px-6 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
+                className="px-6 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-primary rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
               >
                 Сделать админом
               </button>
@@ -129,33 +129,33 @@ export default function AdminUsersPage() {
 
           <div className="glass-strong rounded-2xl border border-red-500/30 overflow-hidden">
             <div className="p-6 border-b border-red-500/20">
-              <h2 className="text-2xl font-bold text-white">Список пользователей ({users.length})</h2>
+              <h2 className="text-2xl font-bold text-primary">Список пользователей ({users.length})</h2>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full">
-                <thead className="bg-[#0f0f0f]">
+                <thead className="bg-surface">
                   <tr>
-                    <th className="px-6 py-4 text-left text-gray-400 font-bold">Email</th>
-                    <th className="px-6 py-4 text-left text-gray-400 font-bold">Имя</th>
-                    <th className="px-6 py-4 text-left text-gray-400 font-bold">Роль</th>
-                    <th className="px-6 py-4 text-left text-gray-400 font-bold">Доступ к датчикам</th>
+                    <th className="px-6 py-4 text-left text-muted font-bold">Email</th>
+                    <th className="px-6 py-4 text-left text-muted font-bold">Имя</th>
+                    <th className="px-6 py-4 text-left text-muted font-bold">Роль</th>
+                    <th className="px-6 py-4 text-left text-muted font-bold">Доступ к датчикам</th>
                   </tr>
                 </thead>
                 <tbody>
                   {users.map((u) => (
-                    <tr key={u.id} className="border-b border-gray-700/30 hover:bg-[#0f0f0f] transition-colors">
-                      <td className="px-6 py-4 text-white">{u.email}</td>
-                      <td className="px-6 py-4 text-gray-300">{u.name}</td>
+                    <tr key={u.id} className="border-b border-gray-700/30 hover:bg-surface transition-colors">
+                      <td className="px-6 py-4 text-primary">{u.email}</td>
+                      <td className="px-6 py-4 text-secondary">{u.name}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
                           u.role === 'admin' 
                             ? 'bg-red-500/20 text-red-400' 
-                            : 'bg-gray-500/20 text-gray-400'
+                            : 'bg-gray-500/20 text-muted'
                         }`}>
                           {u.role === 'admin' ? 'Админ' : 'Пользователь'}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-gray-300">
+                      <td className="px-6 py-4 text-secondary">
                         {u.sensor_permissions?.length || 0} датчиков
                       </td>
                     </tr>

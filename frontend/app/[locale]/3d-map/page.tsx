@@ -219,7 +219,7 @@ export default function Map3DPage() {
   }, [globePoints]);
 
   return (
-    <main className="min-h-screen bg-black relative overflow-hidden">
+    <main className="min-h-screen page-shell relative overflow-hidden">
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]" />
       </div>
@@ -229,10 +229,10 @@ export default function Map3DPage() {
       <div className="relative z-10 pt-24 pb-8">
         <div className="container mx-auto px-4">
           <div className="mb-6">
-            <h1 className="text-4xl md:text-5xl font-black mb-2 bg-gradient-to-r from-white via-green-100 to-cyan-200 bg-clip-text text-transparent">
+            <h1 className="text-4xl md:text-5xl font-black mb-2 wise-gradient-text">
               3D Map
             </h1>
-            <p className="text-gray-400">
+            <p className="text-muted">
               Globe view using the same live sensor set as the dashboard map.
             </p>
           </div>
@@ -241,9 +241,9 @@ export default function Map3DPage() {
             <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-6 py-4 border-b border-green-500/30 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-white font-semibold">{globePoints.length} sensors on the globe</span>
+                <span className="text-primary font-semibold">{globePoints.length} sensors on the globe</span>
               </div>
-              <span className="text-gray-500 text-xs">refresh every 60 sec</span>
+              <span className="text-muted text-xs">refresh every 60 sec</span>
             </div>
 
             <div
@@ -323,14 +323,14 @@ export default function Map3DPage() {
                 </div>
               )}
               {!loading && error ? (
-                <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-white/10 bg-black/60 px-4 py-2 text-xs text-gray-300 backdrop-blur-md">
+                <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-theme bg-black/60 px-4 py-2 text-xs text-secondary backdrop-blur-md">
                   {error}
                 </div>
               ) : null}
             </div>
 
             <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-6 py-3 border-t border-green-500/30">
-              <div className="flex flex-wrap items-center gap-4 justify-center text-xs text-gray-400">
+              <div className="flex flex-wrap items-center gap-4 justify-center text-xs text-muted">
                 {[
                   { color: '#00e400', label: 'Good (0-50)' },
                   { color: '#ffff00', label: 'Moderate (51-100)' },

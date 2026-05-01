@@ -6,6 +6,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 FRONTEND_DIR="$ROOT_DIR/frontend"
+COMPOSE_CMD=()
+DOCKER_CMD=()
+COMPOSE_NEEDS_SUDO=0
 
 # ── Port helper ────────────────────────────────────────────────
 find_free_port() {
@@ -36,17 +39,30 @@ find_free_port() {
 kill_existing_processes() {
   local pids=()
   local pid
+  local cwd
+
+  add_repo_pid() {
+    local candidate="$1"
+    [ -z "$candidate" ] && return 0
+    [ "$candidate" = "$$" ] && return 0
+    cwd="$(readlink -f "/proc/${candidate}/cwd" 2>/dev/null || true)"
+    case "$cwd" in
+      "$ROOT_DIR"|"$ROOT_DIR"/*)
+        pids+=("$candidate")
+        ;;
+    esac
+  }
 
   while IFS= read -r pid; do
-    [ -n "$pid" ] && pids+=("$pid")
+    add_repo_pid "$pid"
   done < <(pgrep -f "next dev" || true)
 
   while IFS= read -r pid; do
-    [ -n "$pid" ] && pids+=("$pid")
-  done < <(pgrep -f "python" || true)
+    add_repo_pid "$pid"
+  done < <(pgrep -f "uvicorn|python .*main.py|python3 .*main.py" || true)
 
   if [ ${#pids[@]} -eq 0 ]; then
-    echo "ℹ️  No existing processes found."
+    echo "ℹ️  No existing Breez dev processes found."
     return 0
   fi
 
@@ -62,14 +78,113 @@ kill_existing_processes() {
   echo "✅ Cleaned up"
 }
 
+wait_for_postgres() {
+  local db_user="${POSTGRES_USER:-iqair_user}"
+  local db_name="${POSTGRES_DB:-iqair}"
+  local attempts="${POSTGRES_WAIT_ATTEMPTS:-60}"
+  local i
+  local output=""
+
+  for ((i = 1; i <= attempts; i++)); do
+    if output="$("${COMPOSE_CMD[@]}" exec -T db pg_isready -U "$db_user" -d "$db_name" 2>&1)"; then
+      echo "✅ Postgres ready"
+      return 0
+    fi
+
+    if (( i == 1 || i % 10 == 0 )); then
+      echo "   Still waiting (${i}/${attempts})... ${output}"
+    fi
+    sleep 1
+  done
+
+  echo "❌ Postgres did not become ready after ${attempts}s."
+  echo "Last readiness output:"
+  echo "$output"
+  echo ""
+  echo "Container status:"
+  "${COMPOSE_CMD[@]}" ps db || true
+  echo ""
+  echo "Recent Postgres logs:"
+  "${COMPOSE_CMD[@]}" logs --tail=80 db || true
+  exit 1
+}
+
+sync_postgres_host_port() {
+  local mapped_port
+  mapped_port="$("${COMPOSE_CMD[@]}" port db 5432 2>/dev/null | awk -F: 'END {print $NF}' || true)"
+  if [[ "$mapped_port" =~ ^[0-9]+$ ]]; then
+    POSTGRES_PORT="$mapped_port"
+    export POSTGRES_PORT
+  fi
+}
+
 # ── Compose command detection ──────────────────────────────────
 detect_compose() {
-  if docker compose version >/dev/null 2>&1; then
+  local docker_compose_output=""
+  local docker_compose_bin_output=""
+
+  if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+    DOCKER_CMD=(docker)
     COMPOSE_CMD=(docker compose)
-  elif command -v docker-compose >/dev/null 2>&1; then
+    return 0
+  fi
+
+  if command -v docker >/dev/null 2>&1; then
+    docker_compose_output="$(docker compose version 2>&1 || true)"
+    if echo "$docker_compose_output" | grep -qi "sudo"; then
+      if command -v sudo >/dev/null 2>&1; then
+        DOCKER_CMD=(sudo docker)
+        COMPOSE_CMD=(sudo docker compose)
+        COMPOSE_NEEDS_SUDO=1
+        return 0
+      fi
+    fi
+  fi
+
+  if command -v docker-compose >/dev/null 2>&1 && docker-compose version >/dev/null 2>&1; then
+    DOCKER_CMD=(docker)
     COMPOSE_CMD=(docker-compose)
-  else
-    COMPOSE_CMD=()
+    return 0
+  fi
+
+  if command -v docker-compose >/dev/null 2>&1; then
+    docker_compose_bin_output="$(docker-compose version 2>&1 || true)"
+    if echo "$docker_compose_bin_output" | grep -qi "sudo"; then
+      if command -v sudo >/dev/null 2>&1; then
+        DOCKER_CMD=(sudo docker)
+        COMPOSE_CMD=(sudo docker-compose)
+        COMPOSE_NEEDS_SUDO=1
+        return 0
+      fi
+    fi
+  fi
+
+  COMPOSE_CMD=()
+}
+
+check_python_venv_support() {
+  if python3 -m ensurepip --version >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "❌ Python venv support is missing for $(python3 --version 2>/dev/null || echo python3)."
+  echo "Install it, then rerun this script:"
+  echo "   sudo apt install python3.12-venv"
+  echo ""
+  echo "If your distro uses the generic package name, use:"
+  echo "   sudo apt install python3-venv"
+  exit 1
+}
+
+move_broken_venv_if_needed() {
+  local venv_path="$1"
+  local backup_path
+
+  if [ -d "$venv_path" ] && [ ! -f "$venv_path/bin/activate" ]; then
+    backup_path="${venv_path}.broken.$(date +%Y%m%d%H%M%S)"
+    echo "⚠️  Found incomplete venv at $venv_path"
+    echo "🧹 Moving it to $backup_path"
+    mv "$venv_path" "$backup_path"
   fi
 }
 
@@ -102,12 +217,24 @@ detect_compose
 
 if [ "$MODE" = "2" ] || [ "$MODE" = "3" ]; then
   if [ ${#COMPOSE_CMD[@]} -eq 0 ]; then
-    echo "❌ Docker Compose not found. Install it or use mode 1."
+    echo "❌ Docker Compose is not available from this shell."
+    echo "Install Docker Compose, fix Docker permissions, or use mode 1."
     exit 1
   fi
 
-  if ! docker info >/dev/null 2>&1; then
+  if [ "$COMPOSE_NEEDS_SUDO" = "1" ]; then
+    echo "ℹ️  Docker requires sudo on this machine; Docker commands may ask for your password."
+    if ! sudo -v; then
+      echo "❌ Could not get sudo access for Docker commands."
+      exit 1
+    fi
+  fi
+
+  if ! "${DOCKER_CMD[@]}" info >/dev/null 2>&1; then
     echo "❌ Docker is not running. Start Docker first."
+    if [ "$COMPOSE_NEEDS_SUDO" = "1" ]; then
+      echo "If Docker is running, try rerunning this script from a normal terminal so sudo can prompt."
+    fi
     exit 1
   fi
 
@@ -137,11 +264,10 @@ if [ "$MODE" = "2" ] || [ "$MODE" = "3" ]; then
   cd "$ROOT_DIR"
   echo "📦 Starting Postgres in Docker on host port ${POSTGRES_PORT}..."
   "${COMPOSE_CMD[@]}" up -d db
+  sync_postgres_host_port
+  echo "📦 Postgres host port: ${POSTGRES_PORT}"
   echo "⏳ Waiting for Postgres..."
-  until "${COMPOSE_CMD[@]}" exec db pg_isready -U iqair_user -d iqair >/dev/null 2>&1; do
-    sleep 1
-  done
-  echo "✅ Postgres ready"
+  wait_for_postgres
 fi
 
 # ── 5. Find free ports ────────────────────────────────────────
@@ -199,7 +325,11 @@ echo ""
 echo "🐍 Checking Python venv..."
 cd "$BACKEND_DIR"
 
+move_broken_venv_if_needed "$BACKEND_DIR/venv"
+move_broken_venv_if_needed "$ROOT_DIR/venv"
+
 if [ ! -f "venv/bin/activate" ] && [ ! -f "$ROOT_DIR/venv/bin/activate" ]; then
+  check_python_venv_support
   echo "📦 Creating venv..."
   python3 -m venv venv
 fi

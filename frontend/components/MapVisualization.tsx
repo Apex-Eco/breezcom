@@ -236,21 +236,21 @@ export default function MapVisualization({ airQualityData, allAirQualityData, pu
                 icon={createCustomIcon(aqi, false, true)}
               >
             <Popup className="custom-popup">
-              <div className="p-3 sm:p-4 md:p-5 min-w-[240px] sm:min-w-[320px] text-white bg-gradient-to-br from-cyan-900/90 to-blue-800/90 border-2 border-cyan-400/50">
+              <div className="p-3 sm:p-4 md:p-5 min-w-[240px] sm:min-w-[320px] text-primary bg-gradient-to-br from-cyan-900/90 to-blue-800/90 border-2 border-cyan-400/50">
                 <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-black text-lg sm:text-xl text-white">
+                  <h3 className="font-black text-lg sm:text-xl text-primary">
                     {sensor.name || 'Платный датчик'}
                   </h3>
                   <div className="px-2 py-1 bg-cyan-500/30 text-cyan-200 rounded text-xs font-bold border border-cyan-400/50">
                     🛒 КУПЛЕНО
                   </div>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-300 mb-4">
+                <p className="text-xs sm:text-sm text-secondary mb-4">
                   {sensor.city || 'Unknown'}, {sensor.country || 'Unknown'}
                 </p>
                 
                 {/* AQI Badge */}
-                <div className="px-4 py-3 rounded-xl text-white font-bold text-center mb-4 shadow-lg bg-cyan-500/20 border border-cyan-400/50">
+                <div className="px-4 py-3 rounded-xl text-primary font-bold text-center mb-4 shadow-lg bg-cyan-500/20 border border-cyan-400/50">
                   <div className="text-3xl font-black mb-1">{aqi}</div>
                   <div className="text-sm opacity-90">Индекс AQI</div>
                 </div>
@@ -258,14 +258,14 @@ export default function MapVisualization({ airQualityData, allAirQualityData, pu
                 {/* Основные параметры */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="bg-white/10 rounded-lg p-3 border border-cyan-400/30">
-                    <div className="text-xs text-gray-300 mb-1">PM2.5</div>
-                    <div className="text-lg font-bold text-white">{(params.pm25 || 0).toFixed(1)}</div>
-                    <div className="text-xs text-gray-400">µg/m³</div>
+                    <div className="text-xs text-secondary mb-1">PM2.5</div>
+                    <div className="text-lg font-bold text-primary">{(params.pm25 || 0).toFixed(1)}</div>
+                    <div className="text-xs text-muted">µg/m³</div>
                   </div>
                   <div className="bg-white/10 rounded-lg p-3 border border-cyan-400/30">
-                    <div className="text-xs text-gray-300 mb-1">PM10</div>
-                    <div className="text-lg font-bold text-white">{(params.pm10 || 0).toFixed(1)}</div>
-                    <div className="text-xs text-gray-400">µg/m³</div>
+                    <div className="text-xs text-secondary mb-1">PM10</div>
+                    <div className="text-lg font-bold text-primary">{(params.pm10 || 0).toFixed(1)}</div>
+                    <div className="text-xs text-muted">µg/m³</div>
                   </div>
                 </div>
                 
@@ -275,45 +275,45 @@ export default function MapVisualization({ airQualityData, allAirQualityData, pu
                   <div className="grid grid-cols-2 gap-2">
                     {params.co2 && (
                       <div className="bg-white/5 rounded p-2">
-                        <div className="text-xs text-gray-400">CO₂</div>
-                        <div className="text-sm font-bold text-white">{(params.co2 || 0).toFixed(1)} ppm</div>
+                        <div className="text-xs text-muted">CO₂</div>
+                        <div className="text-sm font-bold text-primary">{(params.co2 || 0).toFixed(1)} ppm</div>
                       </div>
                     )}
                     {params.voc && (
                       <div className="bg-white/5 rounded p-2">
-                        <div className="text-xs text-gray-400">VOC</div>
-                        <div className="text-sm font-bold text-white">{(params.voc || 0).toFixed(2)} ppm</div>
+                        <div className="text-xs text-muted">VOC</div>
+                        <div className="text-sm font-bold text-primary">{(params.voc || 0).toFixed(2)} ppm</div>
                       </div>
                     )}
                     {params.co && (
                       <div className="bg-white/5 rounded p-2">
-                        <div className="text-xs text-gray-400">CO</div>
-                        <div className="text-sm font-bold text-white">{(params.co || 0).toFixed(2)} ppm</div>
+                        <div className="text-xs text-muted">CO</div>
+                        <div className="text-sm font-bold text-primary">{(params.co || 0).toFixed(2)} ppm</div>
                       </div>
                     )}
                     {params.o3 && (
                       <div className="bg-white/5 rounded p-2">
-                        <div className="text-xs text-gray-400">O₃</div>
-                        <div className="text-sm font-bold text-white">{(params.o3 || 0).toFixed(1)} ppb</div>
+                        <div className="text-xs text-muted">O₃</div>
+                        <div className="text-sm font-bold text-primary">{(params.o3 || 0).toFixed(1)} ppb</div>
                       </div>
                     )}
                     {params.no2 && (
                       <div className="bg-white/5 rounded p-2">
-                        <div className="text-xs text-gray-400">NO₂</div>
-                        <div className="text-sm font-bold text-white">{(params.no2 || 0).toFixed(1)} ppb</div>
+                        <div className="text-xs text-muted">NO₂</div>
+                        <div className="text-sm font-bold text-primary">{(params.no2 || 0).toFixed(1)} ppb</div>
                       </div>
                     )}
                     {params.ch2o && (
                       <div className="bg-white/5 rounded p-2">
-                        <div className="text-xs text-gray-400">CH₂O</div>
-                        <div className="text-sm font-bold text-white">{(params.ch2o || 0).toFixed(3)} ppm</div>
+                        <div className="text-xs text-muted">CH₂O</div>
+                        <div className="text-sm font-bold text-primary">{(params.ch2o || 0).toFixed(3)} ppm</div>
                       </div>
                     )}
                   </div>
                 </div>
                 
                 {sensor.description && (
-                  <div className="text-xs text-gray-300 border-t border-cyan-400/30 pt-3">
+                  <div className="text-xs text-secondary border-t border-cyan-400/30 pt-3">
                     {sensor.description}
                   </div>
                 )}
@@ -365,9 +365,9 @@ export default function MapVisualization({ airQualityData, allAirQualityData, pu
         return (
           <Marker key={index} position={markerPosition} icon={createCustomIcon(aqi, isDangerous)}>
             <Popup className="custom-popup">
-              <div className={`p-3 sm:p-4 md:p-5 min-w-[240px] sm:min-w-[280px] text-white ${isDangerous ? 'bg-gradient-to-br from-red-900/90 to-red-800/90' : 'bg-[#1a1a1a]'}`}>
+              <div className={`p-3 sm:p-4 md:p-5 min-w-[240px] sm:min-w-[280px] text-primary ${isDangerous ? 'bg-gradient-to-br from-red-900/90 to-red-800/90' : 'bg-[#1a1a1a]'}`}>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 mb-2 sm:mb-3">
-                  <h3 className="font-black text-lg sm:text-xl text-white">
+                  <h3 className="font-black text-lg sm:text-xl text-primary">
                     {data.sensor_data?.site || data.city || 'Алматы'}
                   </h3>
                   {isDangerous && (
@@ -376,13 +376,13 @@ export default function MapVisualization({ airQualityData, allAirQualityData, pu
                     </div>
                   )}
                 </div>
-                <p className="text-xs sm:text-sm text-gray-300 mb-3 sm:mb-4">
+                <p className="text-xs sm:text-sm text-secondary mb-3 sm:mb-4">
                   {data.state || 'Алматы'}, {data.country || 'Казахстан'}
                 </p>
                 
                 {/* AQI Badge */}
                 <div
-                  className="px-3 sm:px-4 py-2 sm:py-3 rounded-xl text-white font-bold text-center mb-3 sm:mb-4 shadow-lg"
+                  className="px-3 sm:px-4 py-2 sm:py-3 rounded-xl text-primary font-bold text-center mb-3 sm:mb-4 shadow-lg"
                   style={{ backgroundColor: color }}
                 >
                   <div className="text-2xl sm:text-3xl font-black mb-1">{aqi}</div>
@@ -392,49 +392,49 @@ export default function MapVisualization({ airQualityData, allAirQualityData, pu
                 
                 {/* 4 основных параметра */}
                 <div className="grid grid-cols-2 gap-2 sm:gap-3 mb-3 sm:mb-4">
-                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-white/10">
-                    <div className="text-xs text-gray-400 mb-1">PM2.5</div>
-                    <div className="text-base sm:text-lg font-bold text-white">{pm25.toFixed(1)}</div>
-                    <div className="text-xs text-gray-500">µg/m³</div>
+                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-theme">
+                    <div className="text-xs text-muted mb-1">PM2.5</div>
+                    <div className="text-base sm:text-lg font-bold text-primary">{pm25.toFixed(1)}</div>
+                    <div className="text-xs text-muted">µg/m³</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-white/10">
-                    <div className="text-xs text-gray-400 mb-1">PM10</div>
-                    <div className="text-base sm:text-lg font-bold text-white">{pm10.toFixed(1)}</div>
-                    <div className="text-xs text-gray-500">µg/m³</div>
+                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-theme">
+                    <div className="text-xs text-muted mb-1">PM10</div>
+                    <div className="text-base sm:text-lg font-bold text-primary">{pm10.toFixed(1)}</div>
+                    <div className="text-xs text-muted">µg/m³</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-white/10">
-                    <div className="text-xs text-gray-400 mb-1">CO₂</div>
-                    <div className="text-base sm:text-lg font-bold text-white">{co2}</div>
-                    <div className="text-xs text-gray-500">ppm</div>
+                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-theme">
+                    <div className="text-xs text-muted mb-1">CO₂</div>
+                    <div className="text-base sm:text-lg font-bold text-primary">{co2}</div>
+                    <div className="text-xs text-muted">ppm</div>
                   </div>
-                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-white/10">
-                    <div className="text-xs text-gray-400 mb-1">NO₂</div>
-                    <div className="text-base sm:text-lg font-bold text-white">{no2.toFixed(1)}</div>
-                    <div className="text-xs text-gray-500">ppb</div>
+                  <div className="bg-white/5 rounded-lg p-2 sm:p-3 border border-theme">
+                    <div className="text-xs text-muted mb-1">NO₂</div>
+                    <div className="text-base sm:text-lg font-bold text-primary">{no2.toFixed(1)}</div>
+                    <div className="text-xs text-muted">ppb</div>
                   </div>
                 </div>
                 
                 {/* Информация о датчике */}
                 {data.sensor_data && (
-                  <div className="mb-2 sm:mb-3 text-xs border-t border-white/10 pt-2 sm:pt-3">
-                    <p className="text-gray-300 mb-1">
-                      <span className="font-semibold text-white">Датчик:</span> {data.sensor_data.device_id}
+                  <div className="mb-2 sm:mb-3 text-xs border-t border-theme pt-2 sm:pt-3">
+                    <p className="text-secondary mb-1">
+                      <span className="font-semibold text-primary">Датчик:</span> {data.sensor_data.device_id}
                     </p>
-                    <p className="text-gray-300">
-                      <span className="font-semibold text-white">Место:</span> {data.sensor_data.site}
+                    <p className="text-secondary">
+                      <span className="font-semibold text-primary">Место:</span> {data.sensor_data.site}
                     </p>
                   </div>
                 )}
                 
                 {/* Погода */}
-                <div className="text-xs sm:text-sm border-t border-white/10 pt-2 sm:pt-3 flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
+                <div className="text-xs sm:text-sm border-t border-theme pt-2 sm:pt-3 flex flex-col sm:flex-row justify-between gap-2 sm:gap-0">
                   <div>
-                    <span className="text-gray-400">Температура:</span>
-                    <span className="text-white font-semibold ml-2">{data.current.weather.tp}°C</span>
+                    <span className="text-muted">Температура:</span>
+                    <span className="text-primary font-semibold ml-2">{data.current.weather.tp}°C</span>
                   </div>
                   <div>
-                    <span className="text-gray-400">Влажность:</span>
-                    <span className="text-white font-semibold ml-2">{data.current.weather.hu}%</span>
+                    <span className="text-muted">Влажность:</span>
+                    <span className="text-primary font-semibold ml-2">{data.current.weather.hu}%</span>
                   </div>
                 </div>
               </div>

@@ -51,7 +51,7 @@ export default function CitySelector({ onCitySelect, selectedCity }: CitySelecto
           <h3 className="text-lg font-semibold text-gray-800">Выбор города</h3>
         </div>
         <div className="p-4">
-          <p className="text-gray-500">Загрузка городов...</p>
+          <p className="text-muted">Загрузка городов...</p>
         </div>
       </div>
     );
