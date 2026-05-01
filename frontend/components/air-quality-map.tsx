@@ -10,9 +10,33 @@ import "leaflet.markercluster";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
 import { cn } from "@/lib/utils";
+import { API_URL } from "@/lib/api";
 import type { MapReading } from "@/types/map-reading";
 
 const ALMATY_CENTER: LatLngTuple = [43.238949, 76.889709];
+
+const TYNYS_SENSORS = [
+  { id: "TY-01", lat: 43.216124, lng: 76.880444, site: "Microdistrict 1" },
+  { id: "TY-02", lat: 43.21825, lng: 76.920739, site: "Microdistrict 2" },
+  { id: "TY-03", lat: 43.233797, lng: 76.761204, site: "Alatau District" },
+  { id: "TY-04", lat: 43.223431, lng: 76.901261, site: "Seifullin Ave" },
+  { id: "TY-05", lat: 43.245644, lng: 76.889126, site: "Dostyk Plaza area" },
+  { id: "TY-06", lat: 43.264688, lng: 76.918148, site: "Raimbek Ave" },
+  { id: "TY-07", lat: 43.246987, lng: 76.958445, site: "Shugyla District" },
+  { id: "TY-08", lat: 43.254494, lng: 76.953902, site: "East Industrial" },
+  { id: "TY-09", lat: 43.369441, lng: 77.310747, site: "Talgar Checkpoint" },
+  { id: "TY-10", lat: 43.225782, lng: 76.930466, site: "Almaly District" },
+  { id: "TY-11", lat: 43.230413, lng: 76.910433, site: "Bostandyk Centre" },
+  { id: "TY-12", lat: 43.256511, lng: 76.826015, site: "Navruz Park area" },
+  { id: "TY-13", lat: 43.216466, lng: 76.776729, site: "Auezov District" },
+  { id: "TY-14", lat: 43.344326, lng: 76.914315, site: "Turksib District" },
+  { id: "TY-15", lat: 43.21086, lng: 76.861406, site: "Airport Road" },
+  { id: "TY-16", lat: 43.229065, lng: 76.933489, site: "Medeu Foothills" },
+  { id: "TY-17", lat: 43.22676, lng: 76.910461, site: "Central Park" },
+  { id: "TY-18", lat: 43.23259, lng: 76.88285, site: "Panfilov Park" },
+  { id: "TY-19", lat: 43.224489, lng: 76.923981, site: "Green Bazaar area" },
+  { id: "TY-20", lat: 43.236987, lng: 76.934981, site: "Esentai Mall area" },
+] as const;
 
 const AQI_BREAKPOINTS = [
   { limit: 50, color: "#22c55e", label: "Good", range: "0-50", tw: "bg-green-500" },
@@ -47,15 +71,6 @@ type AggregatedPoint = {
   latestValue: number;
   lastTimestamp: string;
   sensorIds: string[];
-};
-
-type LatestSensor = {
-  id: string;
-  lat: number;
-  lng: number;
-  pm25: number;
-  timestamp: string;
-  site?: string | null;
 };
 
 type VelocityRecord = {
@@ -196,9 +211,171 @@ function aggregatePoints(readings: MapReading[]): AggregatedPoint[] {
   return Array.from(map.values());
 }
 
+type WeatherPopupData = {
+  temp_c: number;
+  feels_like_c: number;
+  humidity: number;
+  wind_kph: number;
+  wind_dir: string;
+  condition_text: string;
+  condition_icon: string;
+  uv: number;
+  pressure_mb: number;
+  aqi_pm25: number | null;
+  aqi_pm10: number | null;
+  epa_index: number | null;
+};
+
+type WeatherCacheEntry = {
+  data: WeatherPopupData;
+  timestamp: number;
+};
+
+const WEATHER_CACHE_TTL_MS = 10 * 60 * 1000;
+const weatherPopupCache = new Map<string, WeatherCacheEntry>();
+
+function buildWeatherUrl(lat: number, lng: number): string {
+  const url = new URL("/api/weather", API_URL);
+  url.searchParams.set("lat", String(lat));
+  url.searchParams.set("lng", String(lng));
+  return url.toString();
+}
+
+function getWeatherCacheKey(lat: number, lng: number): string {
+  return `${lat},${lng}`;
+}
+
+function getCachedWeather(lat: number, lng: number): WeatherPopupData | null {
+  const key = getWeatherCacheKey(lat, lng);
+  const entry = weatherPopupCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > WEATHER_CACHE_TTL_MS) {
+    weatherPopupCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCachedWeather(lat: number, lng: number, data: WeatherPopupData): void {
+  weatherPopupCache.set(getWeatherCacheKey(lat, lng), { data, timestamp: Date.now() });
+}
+
+async function fetchWeatherForPopup(
+  lat: number,
+  lng: number,
+  signal?: AbortSignal
+): Promise<WeatherPopupData> {
+  const cached = getCachedWeather(lat, lng);
+  if (cached) return cached;
+
+  const response = await fetch(buildWeatherUrl(lat, lng), {
+    cache: "no-store",
+    signal,
+  });
+
+  if (!response.ok) {
+    throw new Error("Weather fetch failed");
+  }
+
+  const data = (await response.json()) as WeatherPopupData;
+  setCachedWeather(lat, lng, data);
+  return data;
+}
+
+function isCloseCoordinate(
+  first: { lat: number; lng: number },
+  second: { lat: number; lng: number },
+  threshold = 0.005
+): boolean {
+  return Math.abs(first.lat - second.lat) <= threshold && Math.abs(first.lng - second.lng) <= threshold;
+}
+
+function buildFallbackPoints(points: AggregatedPoint[]): AggregatedPoint[] {
+  return TYNYS_SENSORS.map((sensor) => {
+    const matched = points.find((point) => isCloseCoordinate({ lat: point.coords[0], lng: point.coords[1] }, sensor));
+    const value = matched?.latestValue ?? 35;
+
+    return {
+      key: `${sensor.site} (${sensor.lat.toFixed(4)}, ${sensor.lng.toFixed(4)})`,
+      coords: [sensor.lat, sensor.lng],
+      count: matched?.count ?? 1,
+      avgValue: value,
+      latestValue: value,
+      lastTimestamp: matched?.lastTimestamp ?? new Date().toISOString(),
+      sensorIds: matched?.sensorIds ?? [sensor.id],
+    };
+  });
+}
+
+function getAqiFromPm25(pm25: number): number {
+  return pm25ToAqi(pm25);
+}
+
+function buildSensorPopupHtml(
+  point: AggregatedPoint,
+  weatherBlockHtml: string
+): string {
+  const safePointKey = escapeHtml(point.key);
+  const sensorsHtml = point.sensorIds
+    .map((id) => `<span class="text-blue-600">${escapeHtml(id)}</span>`)
+    .join("<br/>");
+
+  return `
+    <div class="space-y-1 text-sm">
+      <div class="font-semibold">${safePointKey}</div>
+      <div>Avg: ${point.avgValue.toFixed(2)}</div>
+      <div>Latest: ${point.latestValue.toFixed(2)}</div>
+      <div>Samples: ${point.count}</div>
+      <div class="text-xs text-muted-foreground">Sensors:<br/>${sensorsHtml}</div>
+      <div class="text-[11px] text-muted-foreground">Updated: ${new Date(point.lastTimestamp).toLocaleString()}</div>
+      ${weatherBlockHtml}
+    </div>
+  `;
+}
+
+function buildWeatherLoadingHtml(): string {
+  return `
+    <div class="mt-2 border-t pt-2 text-xs">
+      <div class="font-semibold mb-1">🌤 Current Weather</div>
+      <div class="flex items-center gap-2 text-muted-foreground">
+        <span class="inline-block h-3 w-3 animate-spin rounded-full border border-current border-r-transparent"></span>
+        <span>Loading weather...</span>
+      </div>
+    </div>
+  `;
+}
+
+function buildWeatherErrorHtml(message: string): string {
+  return `
+    <div class="mt-2 border-t pt-2 text-xs">
+      <div class="font-semibold mb-1">🌤 Current Weather</div>
+      <div class="text-red-500">${escapeHtml(message)}</div>
+    </div>
+  `;
+}
+
+function buildWeatherHtml(data: WeatherPopupData): string {
+  const epaIndex = data.epa_index ?? "N/A";
+  const pm25 = data.aqi_pm25 ?? "N/A";
+  return `
+    <div class="mt-2 border-t pt-2 text-xs">
+      <div class="font-semibold mb-1">🌤 Current Weather</div>
+      <div class="flex items-center gap-2">
+        ${data.condition_icon ? `<img src="${escapeHtml(data.condition_icon)}" width="32" height="32" alt="${escapeHtml(data.condition_text)}" />` : ""}
+        <span>${escapeHtml(data.condition_text)}</span>
+      </div>
+      <div>🌡️ ${data.temp_c.toFixed(1)}°C feels like ${data.feels_like_c.toFixed(1)}°C</div>
+      <div>💧 ${Math.round(data.humidity)}%  💨 ${data.wind_kph.toFixed(1)} km/h ${escapeHtml(data.wind_dir)}</div>
+      <div>☀️ UV ${data.uv.toFixed(1)}  🌫️ PM2.5 ${pm25} µg/m³</div>
+      <div>EPA Index: ${epaIndex}/6</div>
+    </div>
+  `;
+}
+
 function createPointIcon(value: number) {
+  const aqiValue = getAqiFromPm25(value);
   const bp =
-    AQI_BREAKPOINTS.find((b) => value <= b.limit) ??
+    AQI_BREAKPOINTS.find((b) => aqiValue <= b.limit) ??
     AQI_BREAKPOINTS[AQI_BREAKPOINTS.length - 1];
   const html = `
     <div class="flex items-center justify-center rounded-full text-[10px] font-semibold text-primary shadow-lg border border-white/20 ${bp.tw}"
@@ -228,7 +405,7 @@ function createClusterIcon(cluster: MarkerCluster) {
 
   const avg = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0;
   const bp =
-    AQI_BREAKPOINTS.find((b) => avg <= b.limit) ??
+    AQI_BREAKPOINTS.find((b) => getAqiFromPm25(avg) <= b.limit) ??
     AQI_BREAKPOINTS[AQI_BREAKPOINTS.length - 1];
   const size = Math.min(44 + values.length, 76);
 
@@ -515,10 +692,9 @@ function ClusterLayer({ points, visible }: { points: AggregatedPoint[]; visible:
 
     const buildMarker = (point: AggregatedPoint): L.Marker => {
       const marker = L.marker(point.coords, { icon: createPointIcon(point.avgValue) });
-      const safePointKey = escapeHtml(point.key);
       const tooltipHtml = `
         <div class="space-y-1 text-xs">
-          <div class="font-semibold">${safePointKey}</div>
+          <div class="font-semibold">${escapeHtml(point.key)}</div>
           <div>Avg: ${point.avgValue.toFixed(1)}</div>
           <div>Latest: ${point.latestValue.toFixed(1)}</div>
           <div>Samples: ${point.count}</div>
@@ -531,20 +707,32 @@ function ClusterLayer({ points, visible }: { points: AggregatedPoint[]; visible:
         sticky: true,
       });
 
-      const sensorsHtml = point.sensorIds
-        .map((id) => `<span class="text-blue-600">${escapeHtml(id)}</span>`)
-        .join("<br/>");
-      const popupHtml = `
-        <div class="space-y-1 text-sm">
-          <div class="font-semibold">${safePointKey}</div>
-          <div>Avg: ${point.avgValue.toFixed(2)}</div>
-          <div>Latest: ${point.latestValue.toFixed(2)}</div>
-          <div>Samples: ${point.count}</div>
-          <div class="text-xs text-muted-foreground">Sensors:<br/>${sensorsHtml}</div>
-          <div class="text-[11px] text-muted-foreground">Updated: ${new Date(point.lastTimestamp).toLocaleString()}</div>
-        </div>
-      `;
-      marker.bindPopup(popupHtml);
+      let popupController: AbortController | null = null;
+      const sensorOnlyHtml = buildSensorPopupHtml(point, buildWeatherLoadingHtml());
+      marker.bindPopup(sensorOnlyHtml);
+
+      marker.on("popupopen", () => {
+        popupController?.abort();
+        const controller = new AbortController();
+        popupController = controller;
+        marker.getPopup()?.setContent(buildSensorPopupHtml(point, buildWeatherLoadingHtml()));
+
+        void fetchWeatherForPopup(point.coords[0], point.coords[1], controller.signal)
+          .then((weather) => {
+            if (controller.signal.aborted) return;
+            marker.getPopup()?.setContent(buildSensorPopupHtml(point, buildWeatherHtml(weather)));
+          })
+          .catch((error) => {
+            if (controller.signal.aborted) return;
+            const message = error instanceof Error ? error.message : "Weather fetch failed";
+            marker.getPopup()?.setContent(buildSensorPopupHtml(point, buildWeatherErrorHtml(message)));
+          });
+      });
+
+      marker.on("popupclose", () => {
+        popupController?.abort();
+      });
+
       return marker;
     };
 
@@ -629,40 +817,22 @@ export function AirQualityMap({
   const [showHeatMap, setShowHeatMap] = useState(true);
   const [showFires, setShowFires] = useState(false);
   const [showWind, setShowWind] = useState(true);
-  const [latestSensors, setLatestSensors] = useState<LatestSensor[]>([]);
   const [windData, setWindData] = useState<VelocityRecord[] | null>(null);
   const [pluginsReady, setPluginsReady] = useState(false);
 
   const points = useMemo(() => aggregatePoints(readings), [readings]);
 
-  const fallbackPoints = useMemo<AggregatedPoint[]>(
-    () =>
-      latestSensors.map((sensor) => {
-        const aqiValue = pm25ToAqi(sensor.pm25);
-        return {
-          key: sensor.site
-            ? `${sensor.site} (${sensor.lat.toFixed(4)}, ${sensor.lng.toFixed(4)})`
-            : `${sensor.lat.toFixed(4)}, ${sensor.lng.toFixed(4)}`,
-          coords: [sensor.lat, sensor.lng],
-          count: 1,
-          avgValue: aqiValue,
-          latestValue: aqiValue,
-          lastTimestamp: safeIsoTimestamp(sensor.timestamp),
-          sensorIds: [sensor.id],
-        };
-      }),
-    [latestSensors]
-  );
+  const fallbackPoints = useMemo<AggregatedPoint[]>(() => buildFallbackPoints(points), [points]);
 
-  const displayPoints = points.length > 0 ? points : fallbackPoints;
+  const displayPoints = points.length >= 5 ? points : fallbackPoints;
 
   const heatMapPoints = useMemo<Array<[number, number, number]>>(
     () =>
-      latestSensors.map((sensor) => {
-        const aqi = pm25ToAqi(sensor.pm25);
-        return [sensor.lat, sensor.lng, normalizeAqi(aqi)];
+      displayPoints.map((point) => {
+        const aqi = pm25ToAqi(point.latestValue);
+        return [point.coords[0], point.coords[1], normalizeAqi(aqi)];
       }),
-    [latestSensors]
+    [displayPoints]
   );
 
   const fetchWind = useCallback(async (signal?: AbortSignal) => {
@@ -693,26 +863,6 @@ export function AirQualityMap({
       mounted = false;
     };
   }, []);
-
-  useEffect(() => {
-    const normalized = readings
-      .filter((reading) => Number.isFinite(reading.value))
-      .map((reading) => {
-        const location = reading.location ?? "";
-        const [latRaw, lngRaw] = location.split(",").map((part) => Number(part.trim()));
-        return {
-          id: reading.sensorId,
-          lat: latRaw,
-          lng: lngRaw,
-          pm25: Number(reading.value ?? 0),
-          timestamp: reading.timestamp ?? new Date().toISOString(),
-          site: reading.sensorId ?? null,
-        };
-      })
-      .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
-
-    setLatestSensors(normalized);
-  }, [readings]);
 
   useEffect(() => {
     const controller = new AbortController();

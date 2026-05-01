@@ -12,6 +12,7 @@ import httpx
 import os
 import json
 import re
+import time
 import asyncio
 from dotenv import load_dotenv
 from services.ml_service import smog_model_service
@@ -80,6 +81,9 @@ IQAIR_API_KEY = os.getenv("IQAIR_API_KEY", "")
 IQAIR_BASE_URL = "http://api.airvisual.com/v2"
 
 DEMO_DATA_ENABLED = os.getenv("ENABLE_DEMO_DATA", "0").strip().lower() in {"1", "true", "yes", "on"}
+
+WEATHERAPI_CACHE_TTL_SECONDS = 600
+WEATHERAPI_CACHE: dict[str, tuple[float, dict]] = {}
 
 # Air Quality Sensor API
 SENSOR_API_URL = os.getenv("SENSOR_API_URL", "http://89.218.178.215:3003/")
@@ -715,6 +719,61 @@ async def weather_forecast(lat: float, lon: float):
         return await get_weather_forecast(lat, lon)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Weather forecast unavailable: {str(e)}")
+
+
+def _normalize_weatherapi_icon(icon: str | None) -> str:
+    if not icon:
+        return ""
+    if icon.startswith("//"):
+        return f"https:{icon}"
+    return icon
+
+
+@app.get("/api/weather")
+async def api_weather(lat: float, lng: float):
+    cache_key = f"{lat},{lng}"
+    cached = WEATHERAPI_CACHE.get(cache_key)
+    now = time.time()
+    if cached and now - cached[0] < WEATHERAPI_CACHE_TTL_SECONDS:
+        return cached[1]
+
+    api_key = os.getenv("WEATHERAPI_KEY", "").strip()
+    if not api_key:
+        raise HTTPException(status_code=502, detail="Weather fetch failed")
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            response = await client.get(
+                "https://api.weatherapi.com/v1/current.json",
+                params={"key": api_key, "q": f"{lat},{lng}", "aqi": "yes"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+
+        current = payload.get("current") or {}
+        condition = current.get("condition") or {}
+        air_quality = current.get("air_quality") or {}
+        result = {
+            "temp_c": float(current.get("temp_c", 0) or 0),
+            "feels_like_c": float(current.get("feelslike_c", current.get("temp_c", 0)) or 0),
+            "humidity": float(current.get("humidity", 0) or 0),
+            "wind_kph": float(current.get("wind_kph", 0) or 0),
+            "wind_dir": str(current.get("wind_dir", "") or ""),
+            "condition_text": str(condition.get("text", "") or "Unknown"),
+            "condition_icon": _normalize_weatherapi_icon(condition.get("icon")),
+            "uv": float(current.get("uv", 0) or 0),
+            "pressure_mb": float(current.get("pressure_mb", 0) or 0),
+            "aqi_pm25": air_quality.get("pm2_5"),
+            "aqi_pm10": air_quality.get("pm10"),
+            "epa_index": air_quality.get("us-epa-index") or air_quality.get("us_epa_index"),
+        }
+        WEATHERAPI_CACHE[cache_key] = (time.time(), result)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Weather fetch failed for {cache_key}: {e}")
+        raise HTTPException(status_code=502, detail="Weather fetch failed")
 
 @app.post("/register", response_model=UserResponse)
 async def register(user: UserCreate):
