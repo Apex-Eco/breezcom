@@ -118,6 +118,37 @@ sync_postgres_host_port() {
   fi
 }
 
+start_postgres_container() {
+  local output=""
+  local attempt=0
+  local max_attempts=3
+
+  while (( attempt < max_attempts )); do
+    attempt=$((attempt + 1))
+
+    if output="$("${COMPOSE_CMD[@]}" up -d db 2>&1)"; then
+      return 0
+    fi
+
+    if echo "$output" | grep -Eqi 'Bind for .*failed: port is already allocated|port is already allocated'; then
+      echo "⚠️  Port ${POSTGRES_PORT} is already in use, trying another one..."
+      POSTGRES_PORT="$(find_free_port $((POSTGRES_PORT + 1)))"
+      if [ -z "$POSTGRES_PORT" ]; then
+        echo "❌ Could not find a free host port for Postgres."
+        return 1
+      fi
+      export POSTGRES_PORT
+      continue
+    fi
+
+    echo "$output"
+    return 1
+  done
+
+  echo "❌ Could not start Postgres after trying multiple ports."
+  return 1
+}
+
 # ── Compose command detection ──────────────────────────────────
 detect_compose() {
   local docker_compose_output=""
@@ -133,8 +164,8 @@ detect_compose() {
     docker_compose_output="$(docker compose version 2>&1 || true)"
     if echo "$docker_compose_output" | grep -qi "sudo"; then
       if command -v sudo >/dev/null 2>&1; then
-        DOCKER_CMD=(sudo docker)
-        COMPOSE_CMD=(sudo docker compose)
+        DOCKER_CMD=(sudo -E docker)
+        COMPOSE_CMD=(sudo -E docker compose)
         COMPOSE_NEEDS_SUDO=1
         return 0
       fi
@@ -151,8 +182,8 @@ detect_compose() {
     docker_compose_bin_output="$(docker-compose version 2>&1 || true)"
     if echo "$docker_compose_bin_output" | grep -qi "sudo"; then
       if command -v sudo >/dev/null 2>&1; then
-        DOCKER_CMD=(sudo docker)
-        COMPOSE_CMD=(sudo docker-compose)
+        DOCKER_CMD=(sudo -E docker)
+        COMPOSE_CMD=(sudo -E docker-compose)
         COMPOSE_NEEDS_SUDO=1
         return 0
       fi
@@ -263,7 +294,7 @@ if [ "$MODE" = "2" ] || [ "$MODE" = "3" ]; then
   echo ""
   cd "$ROOT_DIR"
   echo "📦 Starting Postgres in Docker on host port ${POSTGRES_PORT}..."
-  "${COMPOSE_CMD[@]}" up -d db
+  start_postgres_container
   sync_postgres_host_port
   echo "📦 Postgres host port: ${POSTGRES_PORT}"
   echo "⏳ Waiting for Postgres..."

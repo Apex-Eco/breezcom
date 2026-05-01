@@ -55,8 +55,8 @@ export default function TwoDMapCanvas({
       )}
 
       {selectedSensor ? (
-        <div className="pointer-events-none absolute right-4 top-4 z-[700] w-[min(360px,calc(100%-2rem))]">
-          <div className="pointer-events-auto relative">
+        <div className="pointer-events-none absolute inset-x-3 bottom-3 top-3 z-[700] sm:inset-x-auto sm:right-4 sm:w-[min(410px,calc(100%-2rem))]">
+          <div className="pointer-events-auto relative h-full">
             <button
               type="button"
               onClick={() => onSelectSensor(null)}
