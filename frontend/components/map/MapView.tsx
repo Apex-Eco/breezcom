@@ -495,39 +495,6 @@ export function MapView({
     return sensors.map((sensor) => [sensor.lat, sensor.lng, normalizeAqi(sensor.aqi)]);
   }, [latestSensors, sensors]);
 
-  const fetchLatestSensors = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const response = await fetch('/api/sensors/latest', { cache: 'no-store', signal });
-      if (!response.ok) return;
-
-      const payload = await response.json();
-      const data = Array.isArray(payload?.data) ? payload.data : [];
-
-      const normalized = data
-        .map((item: Record<string, unknown>): LatestSensor | null => {
-          const lat = Number(item.lat);
-          const lng = Number(item.lng);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-          return {
-            id: typeof item.id === 'string' ? item.id : `${lat}-${lng}`,
-            lat,
-            lng,
-            pm25: Number(item.pm25 ?? 0),
-            timestamp:
-              typeof item.timestamp === 'string' ? item.timestamp : new Date().toISOString(),
-            site: typeof item.site === 'string' ? item.site : null,
-          };
-        })
-        .filter((item: LatestSensor | null): item is LatestSensor => item !== null);
-
-      setLatestSensors(normalized);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      console.warn('Failed to fetch /api/sensors/latest', error);
-    }
-  }, []);
-
   const fetchWind = useCallback(async (signal?: AbortSignal) => {
     try {
       const fieldData = await fetchWindField(signal);
@@ -576,18 +543,19 @@ export function MapView({
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void fetchLatestSensors(controller.signal);
+    const normalized = sensors
+      .filter((sensor) => Number.isFinite(sensor.lat) && Number.isFinite(sensor.lng))
+      .map((sensor) => ({
+        id: sensor.id,
+        lat: sensor.lat,
+        lng: sensor.lng,
+        pm25: Number(sensor.parameters?.pm25 ?? sensor.aqi ?? 0),
+        timestamp: sensor.timestamp ?? new Date().toISOString(),
+        site: sensor.site ?? sensor.name ?? null,
+      }));
 
-    const intervalId = window.setInterval(() => {
-      void fetchLatestSensors();
-    }, 30_000);
-
-    return () => {
-      window.clearInterval(intervalId);
-      controller.abort();
-    };
-  }, [fetchLatestSensors]);
+    setLatestSensors(normalized);
+  }, [sensors]);
 
   useEffect(() => {
     const controller = new AbortController();

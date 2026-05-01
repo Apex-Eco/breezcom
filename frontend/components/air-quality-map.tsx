@@ -665,38 +665,6 @@ export function AirQualityMap({
     [latestSensors]
   );
 
-  const fetchLatestSensors = useCallback(async (signal?: AbortSignal) => {
-    try {
-      const response = await fetch("/api/sensors/latest", { cache: "no-store", signal });
-      if (!response.ok) return;
-
-      const payload = await response.json();
-      const data = Array.isArray(payload?.data) ? payload.data : [];
-
-      const normalized = data
-        .map((item: Record<string, unknown>): LatestSensor | null => {
-          const lat = Number(item.lat);
-          const lng = Number(item.lng);
-          if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
-          return {
-            id: typeof item.id === "string" ? item.id : `${lat}-${lng}`,
-            lat,
-            lng,
-            pm25: Number(item.pm25 ?? 0),
-            timestamp: typeof item.timestamp === "string" ? item.timestamp : new Date().toISOString(),
-            site: typeof item.site === "string" ? item.site : null,
-          };
-        })
-        .filter((item: LatestSensor | null): item is LatestSensor => item !== null);
-
-      setLatestSensors(normalized);
-    } catch (error) {
-      if (error instanceof DOMException && error.name === "AbortError") return;
-      console.warn("Failed to fetch /api/sensors/latest", error);
-    }
-  }, []);
-
   const fetchWind = useCallback(async (signal?: AbortSignal) => {
     try {
       const fieldData = await fetchWindField(signal);
@@ -727,24 +695,24 @@ export function AirQualityMap({
   }, []);
 
   useEffect(() => {
-    const controller = new AbortController();
-    void fetchLatestSensors(controller.signal);
+    const normalized = readings
+      .filter((reading) => Number.isFinite(reading.value))
+      .map((reading) => {
+        const location = reading.location ?? "";
+        const [latRaw, lngRaw] = location.split(",").map((part) => Number(part.trim()));
+        return {
+          id: reading.sensorId,
+          lat: latRaw,
+          lng: lngRaw,
+          pm25: Number(reading.value ?? 0),
+          timestamp: reading.timestamp ?? new Date().toISOString(),
+          site: reading.sensorId ?? null,
+        };
+      })
+      .filter((item) => Number.isFinite(item.lat) && Number.isFinite(item.lng));
 
-    if (pollingMs <= 0) {
-      return () => {
-        controller.abort();
-      };
-    }
-
-    const intervalId = window.setInterval(() => {
-      void fetchLatestSensors();
-    }, pollingMs);
-
-    return () => {
-      window.clearInterval(intervalId);
-      controller.abort();
-    };
-  }, [fetchLatestSensors, pollingMs]);
+    setLatestSensors(normalized);
+  }, [readings]);
 
   useEffect(() => {
     const controller = new AbortController();

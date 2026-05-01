@@ -5,7 +5,6 @@ import React from 'react';
 
 import { useEffect, useState, useCallback } from 'react';
 import { sensorAPI, AirQualityData } from '@/lib/api';
-import { buildDemoSensor } from '@/lib/demo-sensor';
 
 /**
  * Unified map sensor type for both air quality API and purchased sensors.
@@ -182,118 +181,27 @@ export function useSensorsOnMap(
       }
       setError(null);
       try {
-        // Загружаем данные из /api/map-data (реалтайм) и купленные/выданные датчики пользователя
-        const [mapDataResponse, purchasedRawSensors] = await Promise.all([
-          fetch('/api/map-data', { cache: 'no-store' })
-            .then(res => {
-              if (!res.ok) {
-                console.warn('[SensorsOnMap] API response not OK:', res.status, res.statusText);
-                return [];
-              }
-              return res.json();
-            })
-            .then(data => {
-              if (data?.success && Array.isArray(data.data)) {
-                console.log('[SensorsOnMap] Received map-data:', data.data.length, 'items');
-                return data.data;
-              }
-              console.warn('[SensorsOnMap] Invalid map-data format:', data);
-              return [];
-            })
-            .catch((err) => {
-              console.error('[SensorsOnMap] map-data fetch error:', err);
-              return [];
-            }),
-          sensorAPI.mapSensors().catch((err) => {
-            console.warn('[SensorsOnMap] mapSensors fetch error:', err?.message || err);
-            return [];
-          }),
-        ]);
-        const demoSensorPayload = await fetch('/api/demo-sensor', { cache: 'no-store' })
-          .then((res) => (res.ok ? res.json() : null))
-          .then((payload) => payload?.data ?? buildDemoSensor())
-          .catch(() => buildDemoSensor());
-
-        // Преобразуем данные из /api/map-data в MapSensor
-        // Показываем только данные от активного устройства
-        const mapDataRows = Array.isArray(mapDataResponse) ? mapDataResponse : [];
-        const mapDataSensors: MapSensor[] = [];
-        if (mapDataRows.length > 0) {
-          mapDataRows.forEach((item: any, i: number) => {
-            if (item?.location) {
-              const [lat, lng] = item.location.split(',').map((v: string) => parseFloat(v.trim()));
-              if (!isNaN(lat) && !isNaN(lng)) {
-                const params = item.parameters || {};
-                mapDataSensors.push({
-                  id: `map-data-${item.sensorId || i}`,
-                  lat,
-                  lng,
-                  aqi: item.value || 0,
-                  isPurchased: false,
-                  name: item.site || item.sensorId || 'Sensor',
-                  device_name: item.device_name,
-                  device_id: item.device_id || item.sensorId,
-                  label: item.label,
-                  site: item.site,
-                  city: 'Almaty',
-                  country: 'KZ',
-                  timestamp: item.timestamp,
-                  parameters: {
-                    pm1: params.pm1 ?? 0,
-                    pm25: params.pm25 ?? item.value ?? 0,
-                    pm10: params.pm10 ?? 0,
-                    co2: params.co2 ?? 0,
-                    voc: params.voc ?? 0,
-                    temp: params.temp ?? 0,
-                    hum: params.hum ?? 0,
-                    ch2o: params.ch2o ?? 0,
-                    co: params.co ?? 0,
-                    o3: params.o3 ?? 0,
-                    no2: params.no2 ?? 0,
-                  },
-                });
-              } else {
-                console.warn('[SensorsOnMap] Invalid coordinates:', item.location);
-              }
-            } else {
-              console.warn('[SensorsOnMap] Missing location in item:', item);
-            }
-          });
-        }
+        const purchasedRawSensors = await sensorAPI.mapSensors().catch((err) => {
+          console.warn('[SensorsOnMap] mapSensors fetch error:', err?.message || err);
+          return [];
+        });
 
         const purchasedSensors = (Array.isArray(purchasedRawSensors) ? purchasedRawSensors : [])
           .map((sensor, i) => purchasedSensorToMapSensor(sensor, i))
           .filter((sensor): sensor is MapSensor => sensor !== null);
 
-        const mergedSensors = applyFixedMarkerPositions([...purchasedSensors, ...mapDataSensors]);
-
-        // [demo-sensor] Keep demo marker independent from API payloads.
-        const demoSensor: MapSensor = {
-          id: demoSensorPayload.id,
-          lat: demoSensorPayload.lat,
-          lng: demoSensorPayload.lng,
-          aqi: demoSensorPayload.aqi,
-          isPurchased: false,
-          isDemo: true,
-          name: demoSensorPayload.name,
-          city: demoSensorPayload.city,
-          country: demoSensorPayload.country,
-          timestamp: demoSensorPayload.timestamp,
-          parameters: demoSensorPayload.parameters,
-          markerIndex: 0,
-        };
-        const mapSensorsWithDemo = [demoSensor, ...mergedSensors];
-        const nextSignature = sensorsSignature(mapSensorsWithDemo);
+        const mapSensors = applyFixedMarkerPositions(purchasedSensors);
+        const nextSignature = sensorsSignature(mapSensors);
 
         if (nextSignature !== lastSensorsSignatureRef.current) {
-          console.log('[SensorsOnMap] Processed sensors:', mapSensorsWithDemo.length, mapSensorsWithDemo);
-          setSensors(mapSensorsWithDemo);
+          console.log('[SensorsOnMap] Processed sensors:', mapSensors.length, mapSensors);
+          setSensors(mapSensors);
           lastSensorsSignatureRef.current = nextSignature;
         }
         setAllAirQuality((prev) => (prev.length === 0 ? prev : []));
 
-        if (mergedSensors.length === 0 && (mapDataRows.length > 0 || purchasedSensors.length > 0)) {
-          console.error('[SensorsOnMap] Failed to process sensors from response:', mapDataRows);
+        if (mapSensors.length === 0 && purchasedSensors.length > 0) {
+          console.error('[SensorsOnMap] Failed to process sensors from response:', purchasedSensors);
         }
         lastErrorRef.current = null;
       } catch (e: any) {

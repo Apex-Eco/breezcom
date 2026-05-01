@@ -105,6 +105,41 @@ export interface AdminUser {
   sensor_permissions: string[];
 }
 
+export interface WeatherSnapshot {
+  provider: string;
+  temperature: number;
+  humidity: number;
+  wind_speed: number;
+  pressure: number;
+  condition: string;
+  timestamp: string;
+  forecast?: WeatherSnapshot[];
+}
+
+export interface MlPredictionPayload {
+  pm1: number;
+  pm25: number;
+  pm10: number;
+  co2: number;
+  voc: number;
+  ch2o: number;
+  co: number;
+  o3: number;
+  no2: number;
+  temp: number;
+  humidity: number;
+  wind_speed: number;
+  pressure: number;
+}
+
+export interface MlPredictionResult {
+  predicted_aqi: number;
+  danger_level: string;
+  main_pollutant: string;
+  recommendation: string;
+  model_used: 'almaty_smog_model.pkl' | 'rule_based_fallback';
+}
+
 export const authAPI = {
   register: async (email: string, password: string, name: string) => {
     const response = await api.post('/register', { email, password, name });
@@ -212,6 +247,24 @@ export const sensorAPI = {
   },
 };
 
+export const weatherAPI = {
+  getCurrent: async (lat: number, lon: number): Promise<WeatherSnapshot> => {
+    const response = await api.get('/weather/current', { params: { lat, lon } });
+    return response.data;
+  },
+  getForecast: async (lat: number, lon: number): Promise<WeatherSnapshot> => {
+    const response = await api.get('/weather/forecast', { params: { lat, lon } });
+    return response.data;
+  },
+};
+
+export const mlAPI = {
+  predict: async (payload: MlPredictionPayload): Promise<MlPredictionResult> => {
+    const response = await api.post('/ml/predict', payload);
+    return response.data;
+  },
+};
+
 export const adminAPI = {
   createSensor: async (sensor: Partial<Sensor>) => {
     const response = await api.post('/admin/sensors', sensor);
@@ -234,5 +287,4 @@ export const adminAPI = {
     return response.data.data || [];
   },
 };
-
 
