@@ -116,6 +116,19 @@ npm run dev
 - `POST /air-quality/save` - Сохранение данных
 - `GET /cities` - Список доступных городов
 
+### Историческая погода для ML
+- `POST /admin/weather-history/backfill` - Загрузить до 366 дней почасовой погоды в коллекцию `weather_history`
+- `GET /weather/history` - Прочитать сохраненную историю погоды по координатам
+
+Можно также заполнить MongoDB напрямую:
+
+```bash
+cd backend
+python backfill_weather_history.py --days 365
+```
+
+Скрипт использует Open-Meteo Historical Weather API и сохраняет примерно 8,760 почасовых строк для Алматы.
+
 ## Технологии
 
 ### Бэкенд
@@ -136,7 +149,6 @@ npm run dev
 
 - Если у вас нет API ключа, приложение будет использовать mock данные
 - Убедитесь, что MongoDB запущен перед запуском бэкенда
-
 
 
 

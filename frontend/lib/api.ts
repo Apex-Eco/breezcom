@@ -116,6 +116,30 @@ export interface WeatherSnapshot {
   forecast?: WeatherSnapshot[];
 }
 
+export interface WeatherHistoryBackfillRequest {
+  city?: string;
+  state?: string;
+  country?: string;
+  lat?: number;
+  lon?: number;
+  days?: number;
+  replace_existing?: boolean;
+}
+
+export interface WeatherHistoryResponse {
+  location_key: string;
+  count: number;
+  history: (WeatherSnapshot & {
+    id?: string;
+    city?: string;
+    state?: string;
+    country?: string;
+    lat?: number;
+    lon?: number;
+    location_key?: string;
+  })[];
+}
+
 export interface MlPredictionPayload {
   pm1: number;
   pm25: number;
@@ -254,6 +278,19 @@ export const weatherAPI = {
   },
   getForecast: async (lat: number, lon: number): Promise<WeatherSnapshot> => {
     const response = await api.get('/weather/forecast', { params: { lat, lon } });
+    return response.data;
+  },
+  getHistory: async (
+    lat = 43.2220,
+    lon = 76.8512,
+    days = 365,
+    limit = 10000
+  ): Promise<WeatherHistoryResponse> => {
+    const response = await api.get('/weather/history', { params: { lat, lon, days, limit } });
+    return response.data;
+  },
+  backfillHistory: async (payload: WeatherHistoryBackfillRequest = {}) => {
+    const response = await api.post('/admin/weather-history/backfill', payload);
     return response.data;
   },
 };

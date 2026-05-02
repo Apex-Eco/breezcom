@@ -16,7 +16,7 @@ import time
 import asyncio
 from dotenv import load_dotenv
 from services.ml_service import smog_model_service
-from services.weather_service import get_current_weather, get_weather_forecast
+from services.weather_service import get_current_weather, get_weather_forecast, get_weather_history
 
 load_dotenv()
 
@@ -162,6 +162,16 @@ class MlPredictResponse(BaseModel):
     recommendation: str
     model_used: str
 
+
+class WeatherHistoryBackfillRequest(BaseModel):
+    city: str = "Almaty"
+    state: str = "Almaty"
+    country: str = "Kazakhstan"
+    lat: float = 43.2220
+    lon: float = 76.8512
+    days: int = 365
+    replace_existing: bool = True
+
 # Admin / sensors / purchases
 class SensorBase(BaseModel):
     name: str
@@ -230,12 +240,8 @@ class MemoryCollection:
         self._counter = max(self._counter, len(self._data) + 1)
 
     async def find_one(self, query: dict):
-        if "_id" in query:
-            key = str(query["_id"])
-            return self._data.get(key)
-        # Generic field match: iterate and check all query keys
         for doc in self._data.values():
-            if all(doc.get(k) == v for k, v in query.items()):
+            if self._matches(doc, query):
                 return doc
         return None
 
@@ -247,6 +253,17 @@ class MemoryCollection:
         class R:
             inserted_id = key
         return R()
+
+    async def insert_many(self, docs: list[dict]):
+        inserted_ids = []
+        for doc in docs:
+            result = await self.insert_one(doc)
+            inserted_ids.append(result.inserted_id)
+        class R:
+            pass
+        result = R()
+        result.inserted_ids = inserted_ids
+        return result
 
     async def update_one(self, query: dict, update: dict):
         doc = await self.find_one(query)
@@ -273,16 +290,87 @@ class MemoryCollection:
             modified_count = 1
         return R()
 
+    async def update_many(self, query: dict, update: dict):
+        matched = 0
+        modified = 0
+        for doc in list(self._data.values()):
+            if not self._matches(doc, query):
+                continue
+            matched += 1
+            key = str(doc["_id"])
+            if "$set" in update:
+                for k, v in update["$set"].items():
+                    self._data[key][k] = v
+                modified += 1
+            if "$pull" in update:
+                for k, v in update["$pull"].items():
+                    arr = self._data[key].get(k, [])
+                    if not isinstance(arr, list):
+                        continue
+                    if isinstance(v, dict) and "$in" in v:
+                        remove_values = {str(item) for item in v["$in"]}
+                        self._data[key][k] = [item for item in arr if str(item) not in remove_values]
+                    else:
+                        self._data[key][k] = [item for item in arr if item != v]
+                    modified += 1
+        class R:
+            pass
+        result = R()
+        result.matched_count = matched
+        result.modified_count = modified
+        return result
+
+    async def delete_many(self, query: dict):
+        keys = [key for key, doc in self._data.items() if self._matches(doc, query)]
+        for key in keys:
+            del self._data[key]
+        class R:
+            pass
+        result = R()
+        result.deleted_count = len(keys)
+        return result
+
+    async def create_index(self, keys, name: str = None, **kwargs):
+        return name or str(keys)
+
     def find(self, query: dict = None):
         class Cursor:
             def __init__(self, items):
                 self._items = list(items)
+            def sort(self, field, direction=1):
+                reverse = int(direction) < 0
+                self._items.sort(key=lambda item: item.get(field), reverse=reverse)
+                return self
             def limit(self, n):
                 self._items = self._items[:n] if n > 0 else self._items
                 return self
             async def to_list(self, length):
                 return self._items[:length] if length else self._items
-        return Cursor(self._data.values())
+        query = query or {}
+        return Cursor([doc for doc in self._data.values() if self._matches(doc, query)])
+
+    def _matches(self, doc: dict, query: dict) -> bool:
+        for key, expected in (query or {}).items():
+            actual = doc.get(key)
+            if key == "_id":
+                actual = str(actual)
+            if isinstance(expected, dict):
+                for op, value in expected.items():
+                    if op == "$in":
+                        values = {str(item) for item in value}
+                        if str(actual) not in values:
+                            return False
+                    elif op == "$gte":
+                        if actual is None or str(actual) < str(value):
+                            return False
+                    elif op == "$lte":
+                        if actual is None or str(actual) > str(value):
+                            return False
+                    else:
+                        return False
+            elif str(actual) != str(expected):
+                return False
+        return True
 
 
 class MemoryDb:
@@ -301,6 +389,7 @@ class MemoryDb:
         self.sensors = MemoryCollection("sensors", [])
         self.sensor_readings = MemoryCollection("sensor_readings", [])
         self.air_quality_history = MemoryCollection("air_quality_history", [])
+        self.weather_history = MemoryCollection("weather_history", [])
         self.cities = MemoryCollection("cities", [])
         self.purchases = MemoryCollection("purchases", [])
 
@@ -681,6 +770,16 @@ async def require_admin(current_user: dict = Depends(get_current_user)):
     return current_user
 
 
+async def ensure_indexes():
+    try:
+        await db.weather_history.create_index(
+            [("location_key", 1), ("timestamp", -1)],
+            name="weather_history_location_timestamp",
+        )
+    except Exception as e:
+        print(f"Weather history index setup failed: {e}")
+
+
 @app.on_event("startup")
 async def on_startup():
     global db
@@ -691,6 +790,7 @@ async def on_startup():
     except Exception as e:
         print(f"⚠️ MongoDB unavailable ({e}), using in-memory store")
         db = MemoryDb()
+    await ensure_indexes()
     await remove_demo_sensors_and_permissions()
     await seed_test_user_and_sensors()
 
@@ -719,6 +819,113 @@ async def weather_forecast(lat: float, lon: float):
         return await get_weather_forecast(lat, lon)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Weather forecast unavailable: {str(e)}")
+
+
+def weather_location_key(lat: float, lon: float) -> str:
+    return f"{float(lat):.4f},{float(lon):.4f}"
+
+
+def serialize_mongo_doc(doc: dict) -> dict:
+    result = dict(doc)
+    if "_id" in result:
+        result["_id"] = str(result["_id"])
+        result["id"] = result["_id"]
+    return result
+
+
+def build_weather_history_doc(snapshot: dict, body: WeatherHistoryBackfillRequest) -> dict:
+    return {
+        **snapshot,
+        "city": body.city,
+        "state": body.state,
+        "country": body.country,
+        "lat": float(body.lat),
+        "lon": float(body.lon),
+        "location_key": weather_location_key(body.lat, body.lon),
+        "created_at": datetime.utcnow(),
+    }
+
+
+async def insert_weather_history_docs(docs: list[dict]) -> int:
+    inserted = 0
+    for start in range(0, len(docs), 1000):
+        chunk = docs[start:start + 1000]
+        if not chunk:
+            continue
+        result = await db.weather_history.insert_many(chunk)
+        inserted += len(getattr(result, "inserted_ids", chunk))
+    return inserted
+
+
+@app.post("/admin/weather-history/backfill")
+async def backfill_weather_history(
+    body: WeatherHistoryBackfillRequest,
+    current_user: dict = Depends(require_admin),
+):
+    if body.days < 1 or body.days > 366:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 366")
+
+    try:
+        snapshots = await get_weather_history(body.lat, body.lon, body.days)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Historical weather unavailable: {str(e)}")
+
+    if not snapshots:
+        raise HTTPException(status_code=502, detail="Historical weather API returned no hourly rows")
+
+    docs = [build_weather_history_doc(snapshot, body) for snapshot in snapshots]
+    location_key = weather_location_key(body.lat, body.lon)
+    first_ts = docs[0]["timestamp"]
+    last_ts = docs[-1]["timestamp"]
+    deleted_count = 0
+
+    if body.replace_existing:
+        delete_result = await db.weather_history.delete_many({
+            "location_key": location_key,
+            "timestamp": {"$gte": first_ts, "$lte": last_ts},
+        })
+        deleted_count = getattr(delete_result, "deleted_count", 0)
+
+    inserted_count = await insert_weather_history_docs(docs)
+    return {
+        "message": "Weather history backfilled",
+        "collection": "weather_history",
+        "location_key": location_key,
+        "city": body.city,
+        "country": body.country,
+        "start_timestamp": first_ts,
+        "end_timestamp": last_ts,
+        "requested_days": body.days,
+        "inserted_count": inserted_count,
+        "deleted_count": deleted_count,
+    }
+
+
+@app.get("/weather/history")
+async def weather_history(
+    lat: float = 43.2220,
+    lon: float = 76.8512,
+    days: int = 365,
+    limit: int = 10000,
+):
+    if days < 1 or days > 366:
+        raise HTTPException(status_code=400, detail="days must be between 1 and 366")
+    if limit < 1 or limit > 10000:
+        raise HTTPException(status_code=400, detail="limit must be between 1 and 10000")
+
+    end = datetime.utcnow()
+    start = end - timedelta(days=days)
+    location_key = weather_location_key(lat, lon)
+    history = await db.weather_history.find({
+        "location_key": location_key,
+        "timestamp": {"$gte": start.strftime("%Y-%m-%dT%H:%M")},
+    }).sort("timestamp", -1).limit(limit).to_list(limit)
+
+    return {
+        "location_key": location_key,
+        "count": len(history),
+        "history": [serialize_mongo_doc(doc) for doc in history],
+    }
 
 
 def _normalize_weatherapi_icon(icon: str | None) -> str:

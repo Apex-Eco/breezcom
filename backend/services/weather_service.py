@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 import httpx
@@ -9,6 +9,10 @@ import httpx
 
 WEATHERAPI_BASE_URL = "https://api.weatherapi.com/v1"
 OPEN_METEO_BASE_URL = "https://api.open-meteo.com/v1"
+OPEN_METEO_ARCHIVE_BASE_URL = "https://archive-api.open-meteo.com/v1"
+OPEN_METEO_WEATHER_FIELDS = (
+    "temperature_2m,relative_humidity_2m,wind_speed_10m,pressure_msl,weather_code"
+)
 
 
 def _to_float(value: Any, fallback: float = 0.0) -> float:
@@ -60,6 +64,49 @@ async def get_weather_forecast(lat: float, lon: float) -> Dict[str, Any]:
         except Exception as exc:
             print(f"WeatherAPI forecast failed, falling back to Open-Meteo: {exc}")
     return await _open_meteo_forecast(lat, lon)
+
+
+async def get_weather_history(
+    lat: float,
+    lon: float,
+    days: int = 365,
+    end_date: date | None = None,
+) -> List[Dict[str, Any]]:
+    days = max(1, min(days, 366))
+    end = end_date or (datetime.now(timezone.utc).date() - timedelta(days=1))
+    start = end - timedelta(days=days - 1)
+
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        response = await client.get(
+            f"{OPEN_METEO_ARCHIVE_BASE_URL}/archive",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "start_date": start.isoformat(),
+                "end_date": end.isoformat(),
+                "hourly": OPEN_METEO_WEATHER_FIELDS,
+                "timezone": "auto",
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+
+    hourly = payload.get("hourly", {})
+    times = hourly.get("time", [])
+    history: List[Dict[str, Any]] = []
+    for index, timestamp in enumerate(times):
+        history.append(
+            _normalized(
+                "open-meteo-archive",
+                _value_at(hourly, "temperature_2m", index),
+                _value_at(hourly, "relative_humidity_2m", index),
+                _value_at(hourly, "wind_speed_10m", index),
+                _value_at(hourly, "pressure_msl", index),
+                _open_meteo_condition(_value_at(hourly, "weather_code", index)),
+                timestamp,
+            )
+        )
+    return history
 
 
 async def _weatherapi_current(lat: float, lon: float, api_key: str) -> Dict[str, Any]:
