@@ -729,6 +729,23 @@ def _normalize_weatherapi_icon(icon: str | None) -> str:
     return icon
 
 
+def _weather_popup_response_from_snapshot(snapshot: dict) -> dict:
+    return {
+        "temp_c": float(snapshot.get("temperature", 0) or 0),
+        "feels_like_c": float(snapshot.get("temperature", 0) or 0),
+        "humidity": float(snapshot.get("humidity", 0) or 0),
+        "wind_kph": float(snapshot.get("wind_speed", 0) or 0),
+        "wind_dir": "",
+        "condition_text": str(snapshot.get("condition", "") or "Unknown"),
+        "condition_icon": "",
+        "uv": 0.0,
+        "pressure_mb": float(snapshot.get("pressure", 0) or 0),
+        "aqi_pm25": None,
+        "aqi_pm10": None,
+        "epa_index": None,
+    }
+
+
 @app.get("/api/weather")
 async def api_weather(lat: float, lng: float):
     cache_key = f"{lat},{lng}"
@@ -739,7 +756,13 @@ async def api_weather(lat: float, lng: float):
 
     api_key = os.getenv("WEATHERAPI_KEY", "").strip()
     if not api_key:
-        raise HTTPException(status_code=502, detail="Weather fetch failed")
+        try:
+            result = _weather_popup_response_from_snapshot(await get_current_weather(lat, lng))
+            WEATHERAPI_CACHE[cache_key] = (time.time(), result)
+            return result
+        except Exception as e:
+            print(f"Weather fallback failed for {cache_key}: {e}")
+            raise HTTPException(status_code=502, detail="Weather fetch failed")
 
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -772,8 +795,14 @@ async def api_weather(lat: float, lng: float):
     except HTTPException:
         raise
     except Exception as e:
-        print(f"Weather fetch failed for {cache_key}: {e}")
-        raise HTTPException(status_code=502, detail="Weather fetch failed")
+        print(f"WeatherAPI fetch failed for {cache_key}, trying fallback: {e}")
+        try:
+            result = _weather_popup_response_from_snapshot(await get_current_weather(lat, lng))
+            WEATHERAPI_CACHE[cache_key] = (time.time(), result)
+            return result
+        except Exception as fallback_error:
+            print(f"Weather fallback failed for {cache_key}: {fallback_error}")
+            raise HTTPException(status_code=502, detail="Weather fetch failed")
 
 @app.post("/register", response_model=UserResponse)
 async def register(user: UserCreate):
@@ -1575,4 +1604,4 @@ async def ingest_sensor_data(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8002)
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("PORT", "8000")))

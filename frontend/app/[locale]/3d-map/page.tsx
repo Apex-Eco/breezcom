@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Cookies from 'js-cookie';
 import Navigation from '@/components/Navigation';
-import { airQualityAPI, authAPI, type AirQualityData } from '@/lib/api';
+import { airQualityAPI, authAPI, weatherAPI, type AirQualityData } from '@/lib/api';
 import { useSensorsOnMap } from '@/hooks/useSensorsOnMap';
 
 const Globe = dynamic(
@@ -95,7 +95,24 @@ export default function Map3DPage() {
           })
           .filter((item): item is NonNullable<typeof item> => item !== null);
 
-        setAirQualityPoints(nextPoints);
+        const pointsWithLiveWeather = await Promise.all(
+          nextPoints.map(async (point) => {
+            try {
+              const weather = await weatherAPI.getCurrent(point.lat, point.lng);
+              return {
+                ...point,
+                temp: Number.isFinite(weather?.temperature) ? weather.temperature : point.temp,
+                hum: Number.isFinite(weather?.humidity) ? weather.humidity : point.hum,
+              };
+            } catch (weatherError) {
+              console.warn('Failed to load weather for globe point', point.id, weatherError);
+              return point;
+            }
+          })
+        );
+
+        if (cancelled) return;
+        setAirQualityPoints(pointsWithLiveWeather);
       } catch (loadError) {
         console.warn('Failed to load air-quality points for globe', loadError);
       }

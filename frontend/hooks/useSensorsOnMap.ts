@@ -45,40 +45,38 @@ export interface UseSensorsOnMapResult {
   refetch: () => Promise<void>;
 }
 
-const FIXED_MARKER_COORDS: Array<[number, number]> = [
-  [43.216124, 76.880444],
-  [43.21825, 76.920739],
-  [43.233797, 76.761204],
-  [43.223431, 76.901261],
-  [43.245644, 76.889126],
-  [43.264688, 76.918148],
-  [43.246987, 76.958445],
-  [43.254494, 76.953902],
-  [43.369441, 77.310747],
-  [43.225782, 76.930466],
-  [43.230413, 76.910433],
-  [43.256511, 76.826015],
-  [43.216466, 76.776729],
-  [43.344326, 76.914315],
-  [43.21086, 76.861406],
-  [43.229065, 76.933489],
-  [43.22676, 76.910461],
-  [43.23259, 76.88285],
-  [43.224489, 76.923981],
-  [43.236987, 76.934981],
-];
+type LatestSensorApiRow = {
+  id?: string;
+  lat?: number;
+  lng?: number;
+  pm25?: number;
+  timestamp?: string;
+  site?: string | null;
+};
 
-function applyFixedMarkerPositions(sensors: MapSensor[]): MapSensor[] {
-  const ordered = [...sensors].sort((a, b) => a.id.localeCompare(b.id));
-  return ordered.map((sensor, index) => {
-    const [lat, lng] = FIXED_MARKER_COORDS[index % FIXED_MARKER_COORDS.length];
-    return {
-      ...sensor,
-      lat,
-      lng,
-      markerIndex: index + 1,
-    };
-  });
+type LatestSensorApiResponse = {
+  success?: boolean;
+  data?: LatestSensorApiRow[];
+};
+
+function pm25ToAqi(pm25: number): number {
+  const c = Math.max(0, pm25);
+  const bands = [
+    { cLow: 0, cHigh: 12, iLow: 0, iHigh: 50 },
+    { cLow: 12.1, cHigh: 35.4, iLow: 51, iHigh: 100 },
+    { cLow: 35.5, cHigh: 55.4, iLow: 101, iHigh: 150 },
+    { cLow: 55.5, cHigh: 150.4, iLow: 151, iHigh: 200 },
+    { cLow: 150.5, cHigh: 250.4, iLow: 201, iHigh: 300 },
+    { cLow: 250.5, cHigh: 350.4, iLow: 301, iHigh: 400 },
+    { cLow: 350.5, cHigh: 500.4, iLow: 401, iHigh: 500 },
+  ];
+
+  const band = bands.find((item) => c >= item.cLow && c <= item.cHigh) ?? bands[bands.length - 1];
+  const aqi =
+    ((band.iHigh - band.iLow) / (band.cHigh - band.cLow)) *
+      (Math.min(c, band.cHigh) - band.cLow) +
+    band.iLow;
+  return Math.round(Math.max(0, Math.min(500, aqi)));
 }
 
 function sensorsSignature(sensors: MapSensor[]): string {
@@ -143,6 +141,42 @@ function purchasedSensorToMapSensor(s: any, index: number): MapSensor | null {
   };
 }
 
+function latestSensorToMapSensor(s: LatestSensorApiRow, index: number): MapSensor | null {
+  const lat = Number(s?.lat);
+  const lng = Number(s?.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+  const pm25 = Number(s?.pm25 ?? 0);
+  const safePm25 = Number.isFinite(pm25) ? pm25 : 0;
+
+  return {
+    id: `latest-${s?.id ?? index}`,
+    lat,
+    lng,
+    aqi: pm25ToAqi(safePm25),
+    isPurchased: false,
+    name: s?.site ?? s?.id ?? 'Live sensor',
+    site: s?.site ?? undefined,
+    device_id: s?.id,
+    city: 'Almaty',
+    country: 'Kazakhstan',
+    timestamp: s?.timestamp,
+    parameters: {
+      pm25: safePm25,
+    },
+  };
+}
+
+async function fetchLatestSensors(): Promise<LatestSensorApiRow[]> {
+  const response = await fetch('/api/sensors/latest', { cache: 'no-store' });
+  if (!response.ok) {
+    throw new Error(`Latest sensors request failed with status ${response.status}`);
+  }
+
+  const payload = (await response.json()) as LatestSensorApiResponse;
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
 /**
  * Hook that fetches sensor data for the map from:
  * - airQualityAPI.getAllAirQuality() (IQAir stations)
@@ -181,16 +215,31 @@ export function useSensorsOnMap(
       }
       setError(null);
       try {
-        const purchasedRawSensors = await sensorAPI.mapSensors().catch((err) => {
-          console.warn('[SensorsOnMap] mapSensors fetch error:', err?.message || err);
-          return [];
-        });
+        const [latestRawSensors, purchasedRawSensors] = await Promise.all([
+          fetchLatestSensors().catch((err) => {
+            console.warn('[SensorsOnMap] latest sensors fetch error:', err?.message || err);
+            return [];
+          }),
+          userId
+            ? sensorAPI.mapSensors().catch((err) => {
+                console.warn('[SensorsOnMap] mapSensors fetch error:', err?.message || err);
+                return [];
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const latestSensors = (Array.isArray(latestRawSensors) ? latestRawSensors : [])
+          .map((sensor, i) => latestSensorToMapSensor(sensor, i))
+          .filter((sensor): sensor is MapSensor => sensor !== null);
 
         const purchasedSensors = (Array.isArray(purchasedRawSensors) ? purchasedRawSensors : [])
           .map((sensor, i) => purchasedSensorToMapSensor(sensor, i))
           .filter((sensor): sensor is MapSensor => sensor !== null);
 
-        const mapSensors = applyFixedMarkerPositions(purchasedSensors);
+        const mapSensors = [...latestSensors, ...purchasedSensors].map((sensor, index) => ({
+          ...sensor,
+          markerIndex: index + 1,
+        }));
         const nextSignature = sensorsSignature(mapSensors);
 
         if (nextSignature !== lastSensorsSignatureRef.current) {

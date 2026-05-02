@@ -43,6 +43,14 @@ services:
     environment:
       NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      DB_URL: ${DB_URL:-postgresql://iqair_user:zwNxu4QJzMc35yN2@db:5432/iqair}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://iqair_user:zwNxu4QJzMc35yN2@db:5432/iqair}
+      TYNYS_DB_URL: ${TYNYS_DB_URL:-postgresql://iqair_user:zwNxu4QJzMc35yN2@db:5432/iqair}
+      TYNYS_DB_HOST: ${TYNYS_DB_HOST:-db}
+      TYNYS_DB_PORT: ${TYNYS_DB_PORT:-5432}
+      TYNYS_DB_USER: ${TYNYS_DB_USER:-iqair_user}
+      TYNYS_DB_PASSWORD: ${TYNYS_DB_PASSWORD:-zwNxu4QJzMc35yN2}
+      TYNYS_DB_NAME: ${TYNYS_DB_NAME:-iqair}
     depends_on:
       - backend
     # Map frontend container port 3000 to host port 3000
