@@ -30,6 +30,8 @@
   "menuAboutDesc": "Learn more about Breez",
   "menuAboutItems": ["About Company", "Team", "Careers", "Contacts"],
   "admin": "Admin",
+  "more": "More",
+  "account": "Account",
   "map2d": "2D Map",
   "sensors": "Sensors",
   "hello": "Hello, {name}",

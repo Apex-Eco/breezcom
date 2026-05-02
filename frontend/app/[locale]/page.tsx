@@ -139,7 +139,7 @@ export default function Home() {
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_40%,rgba(0,255,136,0.15),transparent_60%)]" />
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_60%,rgba(0,212,255,0.1),transparent_60%)]" />
             </div>
-            <div ref={heroRef} className="relative container mx-auto px-4 py-14 md:py-20 border-b border-theme scroll-reveal">
+            <div ref={heroRef} className="relative mx-auto max-w-7xl px-4 py-14 md:py-20 border-b border-theme scroll-reveal sm:px-6">
               <div className="inline-flex items-center gap-2 rounded-full border border-theme bg-surface px-4 py-2 text-[12px] font-bold tracking-[0.08em] text-green-300 mb-7 backdrop-blur-md">
                 <div className="relative">
                   <div className="w-2.5 h-2.5 bg-green-400 rounded-full animate-pulse" />
@@ -147,7 +147,7 @@ export default function Home() {
                 </div>
                 <span className="tracking-wide">{t('realtimeBadge')}</span>
               </div>
-              <h1 className="wise-heading max-w-5xl text-5xl sm:text-6xl md:text-7xl xl:text-8xl mb-6 md:mb-7">
+              <h1 className="wise-heading max-w-5xl text-[clamp(3rem,9vw,7rem)] mb-6 md:mb-7">
                 <span className="wise-gradient-text block mb-3">
                   {t('airQuality')}
                 </span>
@@ -169,52 +169,52 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="container mx-auto px-4 sm:px-6 py-8 sm:py-12 md:py-16 section-transition">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 py-8 sm:py-12 md:py-16 section-transition">
             <div className="mb-8 md:mb-12 grid grid-cols-1 gap-4 lg:grid-cols-[1.3fr_0.7fr]">
-              <section className="glass rounded-3xl border border-green-500/20 p-6 md:p-8">
+              <section className="breez-card p-6 md:p-8">
                 <div className="mb-5 flex items-center justify-between gap-4">
                   <div>
-                    <div className="text-xs font-semibold uppercase tracking-[0.24em] text-green-300/80">Command Center</div>
+                    <div className="text-xs font-semibold uppercase tracking-[0.18em] text-green-300">Command Center</div>
                     <h2 className="mt-2 text-2xl font-black text-primary md:text-3xl">Live map routes and sensor coverage</h2>
                   </div>
-                  <div className="rounded-full border border-green-500/30 bg-green-500/10 px-4 py-2 text-sm text-green-200">
+                  <div className="breez-pill px-4 py-2">
                     Updates every 60 sec
                   </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                  <Link href="/2dmap" className="group rounded-2xl border border-cyan-500/20 bg-[linear-gradient(135deg,rgba(6,182,212,0.16),rgba(15,23,42,0.8))] p-5 hover:border-cyan-400/40 transition">
-                    <div className="text-xs uppercase tracking-[0.2em] text-cyan-200/80">Route</div>
+                  <Link href="/2dmap" className="breez-subcard group p-5 hover:border-[var(--border-strong)] transition">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Route</div>
                     <div className="mt-2 text-2xl font-black text-primary">2D Map</div>
                     <p className="mt-2 text-sm text-secondary">Full-screen Leaflet view with live sensor details.</p>
                   </Link>
-                  <Link href="/3d-map" className="group rounded-2xl border border-green-500/20 bg-[linear-gradient(135deg,rgba(34,197,94,0.15),rgba(15,23,42,0.8))] p-5 hover:border-green-400/40 transition">
-                    <div className="text-xs uppercase tracking-[0.2em] text-green-200/80">Route</div>
+                  <Link href="/3d-map" className="breez-subcard group p-5 hover:border-[var(--border-strong)] transition">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Route</div>
                     <div className="mt-2 text-2xl font-black text-primary">3D Globe</div>
                     <p className="mt-2 text-sm text-secondary">Global view for seeded locations and live air-quality points.</p>
                   </Link>
-                  <Link href="/sensors" className="group rounded-2xl border border-emerald-500/20 bg-[linear-gradient(135deg,rgba(16,185,129,0.16),rgba(15,23,42,0.8))] p-5 hover:border-emerald-400/40 transition">
-                    <div className="text-xs uppercase tracking-[0.2em] text-emerald-200/80">Access</div>
+                  <Link href="/sensors" className="breez-subcard group p-5 hover:border-[var(--border-strong)] transition">
+                    <div className="text-xs uppercase tracking-[0.18em] text-muted">Access</div>
                     <div className="mt-2 text-2xl font-black text-primary">Sensors</div>
                     <p className="mt-2 text-sm text-secondary">Open sensor inventory and manage the available monitoring points.</p>
                   </Link>
                 </div>
               </section>
 
-              <section className="glass rounded-3xl border border-theme p-6 md:p-8">
+              <section className="breez-card p-6 md:p-8">
                 <div className="text-xs font-semibold uppercase tracking-[0.24em] text-muted">Live Snapshot</div>
                 <div className="mt-5 space-y-4">
-                  <div className="rounded-2xl border border-theme bg-white/5 p-4">
+                  <div className="breez-subcard p-4">
                     <div className="text-xs uppercase tracking-[0.18em] text-muted">Tracked sensors</div>
                     <div className="mt-2 text-4xl font-black text-primary">{sensors.length}</div>
                   </div>
-                  <div className="rounded-2xl border border-theme bg-white/5 p-4">
+                  <div className="breez-subcard p-4">
                     <div className="text-xs uppercase tracking-[0.18em] text-muted">Average AQI</div>
                     <div className="mt-2 text-4xl font-black text-primary">
                       {sensors.length > 0 ? Math.round(sensors.reduce((sum, s) => sum + s.aqi, 0) / sensors.length) : 0}
                     </div>
                   </div>
-                  <div className="rounded-2xl border border-theme bg-white/5 p-4">
+                  <div className="breez-subcard p-4">
                     <div className="text-xs uppercase tracking-[0.18em] text-muted">Refresh cycle</div>
                     <div className="mt-2 text-4xl font-black text-primary">60s</div>
                   </div>

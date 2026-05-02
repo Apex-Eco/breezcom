@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminAPI, authAPI, Sensor, User, adminAuthAPI } from '@/lib/api';
+import { adminAPI, authAPI, Sensor, User } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Cookies from 'js-cookie';
-import { Link } from '@/i18n/navigation';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
+import { AdminEmptyState, AdminShell } from '@/components/admin/AdminShell';
+import type { FormEvent } from 'react';
 
 interface SensorFormState {
   name: string;
@@ -19,22 +20,24 @@ interface SensorFormState {
   pm10: string;
 }
 
+const emptySensorForm: SensorFormState = {
+  name: '',
+  description: '',
+  price: '0',
+  city: '',
+  country: '',
+  lat: '',
+  lng: '',
+  pm25: '',
+  pm10: '',
+};
+
 export default function AdminSensorsPage() {
   const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [sensors, setSensors] = useState<Sensor[]>([]);
-  const [sensorForm, setSensorForm] = useState<SensorFormState>({
-    name: '',
-    description: '',
-    price: '0',
-    city: '',
-    country: '',
-    lat: '',
-    lng: '',
-    pm25: '',
-    pm10: '',
-  });
+  const [sensorForm, setSensorForm] = useState<SensorFormState>(emptySensorForm);
   const [showForm, setShowForm] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
@@ -70,7 +73,7 @@ export default function AdminSensorsPage() {
     }
   };
 
-  const handleCreateSensor = async (e: React.FormEvent) => {
+  const handleCreateSensor = async (e: FormEvent) => {
     e.preventDefault();
     if (!sensorForm.name.trim()) {
       toast.error('Название обязательно');
@@ -86,7 +89,7 @@ export default function AdminSensorsPage() {
       await adminAPI.createSensor({
         name: sensorForm.name,
         description: sensorForm.description,
-        price: price,
+        price,
         city: sensorForm.city,
         country: sensorForm.country,
         location: {
@@ -94,23 +97,13 @@ export default function AdminSensorsPage() {
           coordinates: [lng, lat],
         },
         parameters: {
-          pm25: pm25,
-          pm10: pm10,
+          pm25,
+          pm10,
         },
       });
 
       toast.success('Датчик создан успешно');
-      setSensorForm({
-        name: '',
-        description: '',
-        price: '0',
-        city: '',
-        country: '',
-        lat: '',
-        lng: '',
-        pm25: '',
-        pm10: '',
-      });
+      setSensorForm(emptySensorForm);
       setShowForm(false);
       loadSensors();
     } catch (err: any) {
@@ -118,8 +111,13 @@ export default function AdminSensorsPage() {
     }
   };
 
+  const handleLogout = () => {
+    authAPI.logout();
+    router.push('/');
+  };
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center page-shell text-red-400">Загрузка...</div>;
+    return <div className="flex min-h-screen items-center justify-center page-shell text-xl font-bold text-green-400">Загрузка...</div>;
   }
 
   if (!isAuthenticated) {
@@ -128,202 +126,100 @@ export default function AdminSensorsPage() {
   }
 
   return (
-    <div className="min-h-screen page-shell relative overflow-hidden">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.05),transparent_70%)]"></div>
-      </div>
-
-      {/* Admin Navbar */}
-      <nav className="glass-strong border-b border-red-500/20 sticky top-0 z-50 shadow-2xl">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-6">
-              <Link href="/admin" className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-xl font-black text-primary">⚙️</span>
-                </div>
-                <span className="text-2xl font-black bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">Админ Панель</span>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-red-400 text-sm">{user?.name}</span>
-              <button
-                onClick={() => { Cookies.remove('token'); router.push('/'); }}
-                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm"
-              >
-                Выйти
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
-
-      <div className="relative z-10 pt-8 pb-8">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-4xl font-black mb-2 wise-gradient-text">
-                Управление датчиками
-              </h1>
-              <p className="text-secondary">Создание и управление платными датчиками</p>
-            </div>
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-primary rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
-            >
-              {showForm ? '✕ Отмена' : '+ Создать датчик'}
-            </button>
-          </div>
-
-          {showForm && (
-            <div className="glass-strong rounded-2xl border border-red-500/30 p-6 mb-6">
-              <h2 className="text-2xl font-bold text-primary mb-4">Создать новый датчик</h2>
-              <form onSubmit={handleCreateSensor} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">Название *</label>
-                    <input
-                      type="text"
-                      value={sensorForm.name}
-                      onChange={(e) => setSensorForm({ ...sensorForm, name: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">Цена (₸)</label>
-                    <input
-                      type="number"
-                      value={sensorForm.price}
-                      onChange={(e) => setSensorForm({ ...sensorForm, price: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">Город</label>
-                    <input
-                      type="text"
-                      value={sensorForm.city}
-                      onChange={(e) => setSensorForm({ ...sensorForm, city: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">Страна</label>
-                    <input
-                      type="text"
-                      value={sensorForm.country}
-                      onChange={(e) => setSensorForm({ ...sensorForm, country: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">Широта (lat)</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={sensorForm.lat}
-                      onChange={(e) => setSensorForm({ ...sensorForm, lat: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">Долгота (lng)</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={sensorForm.lng}
-                      onChange={(e) => setSensorForm({ ...sensorForm, lng: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">PM2.5</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={sensorForm.pm25}
-                      onChange={(e) => setSensorForm({ ...sensorForm, pm25: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-bold text-secondary mb-2">PM10</label>
-                    <input
-                      type="number"
-                      step="any"
-                      value={sensorForm.pm10}
-                      onChange={(e) => setSensorForm({ ...sensorForm, pm10: e.target.value })}
-                      className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-secondary mb-2">Описание</label>
-                  <textarea
-                    value={sensorForm.description}
-                    onChange={(e) => setSensorForm({ ...sensorForm, description: e.target.value })}
-                    className="w-full px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-                    rows={3}
+    <AdminShell
+      user={user}
+      title="Sensors"
+      description="Создание и управление платными датчиками Breez."
+      onLogout={handleLogout}
+      actions={
+        <button onClick={() => setShowForm(!showForm)} className="wise-btn h-11 px-5 text-sm">
+          {showForm ? 'Отмена' : 'Создать датчик'}
+        </button>
+      }
+    >
+      {showForm ? (
+        <section className="breez-card mb-6 p-6">
+          <h2 className="mb-5 text-2xl font-black text-primary">Создать новый датчик</h2>
+          <form onSubmit={handleCreateSensor} className="space-y-5">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              {[
+                { key: 'name', label: 'Название *', type: 'text', required: true },
+                { key: 'price', label: 'Цена (₸)', type: 'number' },
+                { key: 'city', label: 'Город', type: 'text' },
+                { key: 'country', label: 'Страна', type: 'text' },
+                { key: 'lat', label: 'Широта (lat)', type: 'number', step: 'any' },
+                { key: 'lng', label: 'Долгота (lng)', type: 'number', step: 'any' },
+                { key: 'pm25', label: 'PM2.5', type: 'number', step: 'any' },
+                { key: 'pm10', label: 'PM10', type: 'number', step: 'any' },
+              ].map((field) => (
+                <div key={field.key}>
+                  <label className="mb-2 block text-sm font-bold text-secondary">{field.label}</label>
+                  <input
+                    type={field.type}
+                    step={field.step}
+                    required={field.required}
+                    value={sensorForm[field.key as keyof SensorFormState]}
+                    onChange={(e) => setSensorForm({ ...sensorForm, [field.key]: e.target.value })}
+                    className="wise-input w-full px-4 py-3"
                   />
                 </div>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-gradient-to-r from-red-500 to-orange-500 text-primary rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
-                >
+              ))}
+            </div>
+            <div>
+              <label className="mb-2 block text-sm font-bold text-secondary">Описание</label>
+              <textarea
+                value={sensorForm.description}
+                onChange={(e) => setSensorForm({ ...sensorForm, description: e.target.value })}
+                className="wise-input w-full px-4 py-3"
+                rows={3}
+              />
+            </div>
+            <button type="submit" className="wise-btn h-11 px-6 text-sm">
+              Создать датчик
+            </button>
+          </form>
+        </section>
+      ) : null}
+
+      <section className="breez-card overflow-hidden">
+        <div className="border-b border-theme p-6">
+          <h2 className="text-2xl font-black text-primary">Список датчиков ({sensors.length})</h2>
+        </div>
+        <div className="p-6">
+          {sensors.length === 0 ? (
+            <AdminEmptyState
+              icon="+"
+              title="Нет созданных датчиков"
+              description="Создайте первый датчик, чтобы он появился в магазине, карте и панели управления."
+              action={
+                <button onClick={() => setShowForm(true)} className="wise-btn h-11 px-5 text-sm">
                   Создать датчик
                 </button>
-              </form>
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {sensors.map((sensor) => (
+                <div key={sensor.id} className="breez-subcard p-4 transition hover:border-[var(--border-strong)]">
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    <h3 className="min-w-0 break-words text-lg font-black text-primary">{sensor.name}</h3>
+                    <span className="shrink-0 rounded-full bg-[var(--surface-muted)] px-3 py-1 text-sm font-black text-green-300">
+                      {sensor.price}₸
+                    </span>
+                  </div>
+                  <p className="mb-4 text-sm leading-6 text-secondary">{sensor.description || 'Нет описания'}</p>
+                  <div className="space-y-2 text-sm text-secondary">
+                    <div><span className="font-bold text-primary">Город:</span> {sensor.city || 'N/A'}</div>
+                    <div><span className="font-bold text-primary">Координаты:</span> {sensor.location?.coordinates?.[1]?.toFixed(4)}, {sensor.location?.coordinates?.[0]?.toFixed(4)}</div>
+                    <div><span className="font-bold text-primary">PM2.5:</span> {sensor.parameters?.pm25 || 0}</div>
+                    <div><span className="font-bold text-primary">PM10:</span> {sensor.parameters?.pm10 || 0}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
-
-          <div className="glass-strong rounded-2xl border border-red-500/30 overflow-hidden">
-            <div className="p-6 border-b border-red-500/20">
-              <h2 className="text-2xl font-bold text-primary">Список датчиков ({sensors.length})</h2>
-            </div>
-            <div className="p-6">
-              {sensors.length === 0 ? (
-                <div className="text-center py-12 text-muted">
-                  <p className="text-lg">Нет созданных датчиков</p>
-                  <p className="text-sm mt-2">Создайте первый датчик, чтобы начать</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {sensors.map((sensor) => (
-                    <div
-                      key={sensor.id}
-                      className="p-4 bg-surface rounded-xl border border-gray-700/50 hover:border-red-500/50 transition-all"
-                    >
-                      <div className="flex items-start justify-between mb-3">
-                        <h3 className="text-primary font-bold text-lg">{sensor.name}</h3>
-                        <span className="text-red-400 font-bold">{sensor.price}₸</span>
-                      </div>
-                      <p className="text-muted text-sm mb-3">{sensor.description || 'Нет описания'}</p>
-                      <div className="space-y-1 text-sm">
-                        <div className="text-muted">
-                          <span className="text-muted">Город:</span> {sensor.city || 'N/A'}
-                        </div>
-                        <div className="text-muted">
-                          <span className="text-muted">Координаты:</span> {sensor.location?.coordinates?.[1]?.toFixed(4)}, {sensor.location?.coordinates?.[0]?.toFixed(4)}
-                        </div>
-                        <div className="text-muted">
-                          <span className="text-muted">PM2.5:</span> {sensor.parameters?.pm25 || 0}
-                        </div>
-                        <div className="text-muted">
-                          <span className="text-muted">PM10:</span> {sensor.parameters?.pm10 || 0}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </AdminShell>
   );
 }
-
-

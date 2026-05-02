@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { adminAPI, authAPI, AdminUser, User, adminAuthAPI } from '@/lib/api';
+import { adminAPI, authAPI, AdminUser, User } from '@/lib/api';
 import toast from 'react-hot-toast';
 import Cookies from 'js-cookie';
-import { Link } from '@/i18n/navigation';
-import { useRouter } from 'next/navigation';
+import { useRouter } from '@/i18n/navigation';
+import { AdminEmptyState, AdminShell } from '@/components/admin/AdminShell';
 
 export default function AdminUsersPage() {
   const router = useRouter();
@@ -62,8 +62,13 @@ export default function AdminUsersPage() {
     }
   };
 
+  const handleLogout = () => {
+    authAPI.logout();
+    router.push('/');
+  };
+
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center page-shell text-red-400">Загрузка...</div>;
+    return <div className="flex min-h-screen items-center justify-center page-shell text-xl font-bold text-green-400">Загрузка...</div>;
   }
 
   if (!isAuthenticated) {
@@ -72,102 +77,73 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen page-shell relative overflow-hidden">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,0,0,0.05),transparent_70%)]"></div>
-      </div>
-
-      <nav className="glass-strong border-b border-red-500/20 sticky top-0 z-50 shadow-2xl">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-6">
-              <Link href="/admin" className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-orange-500 rounded-lg flex items-center justify-center shadow-lg">
-                  <span className="text-xl font-black text-primary">⚙️</span>
-                </div>
-                <span className="text-2xl font-black bg-gradient-to-r from-red-400 to-orange-400 bg-clip-text text-transparent">Админ Панель</span>
-              </Link>
-            </div>
-            <div className="flex items-center space-x-4">
-              <span className="text-red-400 text-sm">{user?.name}</span>
-              <button
-                onClick={() => { Cookies.remove('token'); router.push('/'); }}
-                className="px-4 py-2 bg-red-500/20 text-red-400 rounded-lg text-sm"
-              >
-                Выйти
-              </button>
-            </div>
-          </div>
+    <AdminShell
+      user={user}
+      title="Users"
+      description="Просмотр пользователей и выдача административной роли."
+      onLogout={handleLogout}
+    >
+      <section className="breez-card mb-6 p-6">
+        <h2 className="mb-4 text-2xl font-black text-primary">Сделать пользователя админом</h2>
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <input
+            type="email"
+            value={makeAdminEmail}
+            onChange={(e) => setMakeAdminEmail(e.target.value)}
+            placeholder="email@example.com"
+            className="wise-input min-w-0 flex-1 px-4 py-3"
+          />
+          <button onClick={handleMakeAdmin} className="wise-btn h-12 px-5 text-sm">
+            Сделать админом
+          </button>
         </div>
-      </nav>
+      </section>
 
-      <div className="relative z-10 pt-8 pb-8">
-        <div className="container mx-auto px-4">
-          <h1 className="text-4xl font-black mb-6 wise-gradient-text">
-            Управление пользователями
-          </h1>
-
-          <div className="glass-strong rounded-2xl border border-red-500/30 p-6 mb-6">
-            <h2 className="text-2xl font-bold text-primary mb-4">Сделать пользователя админом</h2>
-            <div className="flex gap-4">
-              <input
-                type="email"
-                value={makeAdminEmail}
-                onChange={(e) => setMakeAdminEmail(e.target.value)}
-                placeholder="email@example.com"
-                className="flex-1 px-4 py-2 border-2 border-gray-700/50 rounded-xl bg-surface text-primary"
-              />
-              <button
-                onClick={handleMakeAdmin}
-                className="px-6 py-2 bg-gradient-to-r from-red-500 to-orange-500 text-primary rounded-xl font-bold hover:from-red-400 hover:to-orange-400 transition-all"
-              >
-                Сделать админом
-              </button>
-            </div>
+      <section className="breez-card overflow-hidden">
+        <div className="border-b border-theme p-6">
+          <h2 className="text-2xl font-black text-primary">Список пользователей ({users.length})</h2>
+        </div>
+        {users.length === 0 ? (
+          <div className="p-6">
+            <AdminEmptyState
+              icon="U"
+              title="Пользователи не найдены"
+              description="Когда пользователи зарегистрируются, они появятся здесь вместе с ролями и доступами."
+            />
           </div>
-
-          <div className="glass-strong rounded-2xl border border-red-500/30 overflow-hidden">
-            <div className="p-6 border-b border-red-500/20">
-              <h2 className="text-2xl font-bold text-primary">Список пользователей ({users.length})</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead className="bg-surface">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-muted font-bold">Email</th>
-                    <th className="px-6 py-4 text-left text-muted font-bold">Имя</th>
-                    <th className="px-6 py-4 text-left text-muted font-bold">Роль</th>
-                    <th className="px-6 py-4 text-left text-muted font-bold">Доступ к датчикам</th>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="breez-table">
+              <thead className="bg-[var(--surface-muted)]">
+                <tr>
+                  <th>Email</th>
+                  <th>Имя</th>
+                  <th>Роль</th>
+                  <th>Доступ к датчикам</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((u) => (
+                  <tr key={u.id}>
+                    <td className="max-w-[18rem] break-words text-primary">{u.email}</td>
+                    <td className="max-w-[16rem] break-words text-secondary">{u.name}</td>
+                    <td>
+                      <span className={`rounded-full px-3 py-1 text-sm font-bold ${
+                        u.role === 'admin'
+                          ? 'bg-green-500/15 text-green-300'
+                          : 'bg-[var(--surface-muted)] text-secondary'
+                      }`}>
+                        {u.role === 'admin' ? 'Админ' : 'Пользователь'}
+                      </span>
+                    </td>
+                    <td className="text-secondary">{u.sensor_permissions?.length || 0} датчиков</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {users.map((u) => (
-                    <tr key={u.id} className="border-b border-gray-700/30 hover:bg-surface transition-colors">
-                      <td className="px-6 py-4 text-primary">{u.email}</td>
-                      <td className="px-6 py-4 text-secondary">{u.name}</td>
-                      <td className="px-6 py-4">
-                        <span className={`px-3 py-1 rounded-lg text-sm font-bold ${
-                          u.role === 'admin' 
-                            ? 'bg-red-500/20 text-red-400' 
-                            : 'bg-gray-500/20 text-muted'
-                        }`}>
-                          {u.role === 'admin' ? 'Админ' : 'Пользователь'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-secondary">
-                        {u.sensor_permissions?.length || 0} датчиков
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
-        </div>
-      </div>
-    </div>
+        )}
+      </section>
+    </AdminShell>
   );
 }
-
-

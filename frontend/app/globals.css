@@ -141,6 +141,12 @@ body::before {
     transition: transform 160ms ease, background 160ms ease, border-color 160ms ease;
   }
 
+  .wise-btn:focus-visible,
+  .wise-btn-secondary:focus-visible {
+    outline: 2px solid color-mix(in srgb, var(--wise-green) 70%, var(--text-primary));
+    outline-offset: 2px;
+  }
+
   .wise-btn:hover {
     transform: scale(1.05);
     background: var(--wise-green-hover);
@@ -184,6 +190,74 @@ body::before {
   .wise-input:focus {
     border-color: var(--wise-green);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--wise-green) 28%, transparent);
+  }
+
+  .breez-page-bg {
+    background:
+      radial-gradient(circle at 18% 12%, var(--ambient-1), transparent 34%),
+      radial-gradient(circle at 84% 72%, var(--ambient-2), transparent 36%),
+      linear-gradient(135deg, var(--background), var(--background-soft));
+  }
+
+  .breez-card {
+    background: color-mix(in srgb, var(--surface) 94%, transparent);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow:
+      var(--ring-shadow),
+      0 18px 44px color-mix(in srgb, #000000 24%, transparent);
+  }
+
+  :root[data-theme="light"] .breez-card {
+    box-shadow:
+      0 0 0 1px rgba(14, 15, 12, 0.04),
+      0 12px 32px rgba(14, 15, 12, 0.08);
+  }
+
+  .breez-subcard {
+    background: color-mix(in srgb, var(--surface-strong) 88%, transparent);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+  }
+
+  .breez-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.25rem;
+    border-radius: 9999px;
+    border: 1px solid var(--border);
+    background: var(--surface-muted);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+
+  .breez-table {
+    min-width: 760px;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .breez-table th {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  .breez-table td,
+  .breez-table th {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .breez-table tbody tr:hover {
+    background: var(--surface-muted);
   }
 
   .text-primary { color: var(--text-primary); }
