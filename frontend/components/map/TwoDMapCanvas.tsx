@@ -1,15 +1,15 @@
 'use client';
 
 import { MapView } from '@/components/map/MapView';
-import { SensorDetailPanel } from '@/components/map/SensorDetailPanel';
 import { SensorMarker } from '@/components/map/SensorMarker';
 import type { MapSensor } from '@/hooks/useSensorsOnMap';
+import type { MapStyleValue } from './types';
 
 interface TwoDMapCanvasProps {
   sensors: MapSensor[];
   loading: boolean;
   error: string | null;
-  selectedSensor: MapSensor | null;
+  defaultMapStyle: MapStyleValue;
   onSelectSensor: (sensor: MapSensor | null) => void;
   onRetry: () => void;
 }
@@ -18,7 +18,7 @@ export default function TwoDMapCanvas({
   sensors,
   loading,
   error,
-  selectedSensor,
+  defaultMapStyle,
   onSelectSensor,
   onRetry,
 }: TwoDMapCanvasProps) {
@@ -38,11 +38,17 @@ export default function TwoDMapCanvas({
       ) : null}
 
       {loading && sensors.length === 0 ? (
-        <div className="flex h-full items-center justify-center">
+        <div className="flex h-full items-center justify-center bg-surface">
           <div className="h-14 w-14 animate-spin rounded-full border-4 border-theme border-t-green-400" />
         </div>
       ) : (
-        <MapView sensors={sensors} mapStyle="dark" className="h-full rounded-none" mapActionHref={null}>
+        <MapView
+          sensors={sensors}
+          mapStyle={defaultMapStyle}
+          className="h-full rounded-none"
+          mapActionHref={null}
+          showStyleControl
+        >
           {sensors.map((sensor) => (
             <SensorMarker
               key={`${sensor.id}-${sensor.aqi}`}
@@ -52,25 +58,6 @@ export default function TwoDMapCanvas({
             />
           ))}
         </MapView>
-      )}
-
-      {selectedSensor ? (
-        <div className="pointer-events-none absolute inset-x-3 bottom-3 top-3 z-[700] sm:inset-x-auto sm:right-4 sm:w-[min(410px,calc(100%-2rem))]">
-          <div className="pointer-events-auto relative h-full">
-            <button
-              type="button"
-              onClick={() => onSelectSensor(null)}
-              className="absolute right-3 top-3 z-10 wise-btn-secondary px-2.5 py-1 text-xs"
-            >
-              Close
-            </button>
-            <SensorDetailPanel sensor={selectedSensor} />
-          </div>
-        </div>
-      ) : (
-        <div className="pointer-events-none absolute bottom-4 right-4 z-[700] rounded-xl border border-theme bg-black/55 px-4 py-3 text-sm text-secondary backdrop-blur-md">
-          Click any marker to open the live sensor card.
-        </div>
       )}
     </section>
   );

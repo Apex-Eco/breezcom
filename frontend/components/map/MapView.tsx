@@ -79,6 +79,17 @@ const TILE_LAYERS: Record<
     url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   },
+  day: {
+    url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  night: {
+    url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    className: 'dark-map-tiles',
+  },
   dark: {
     url: 'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
     attribution:
@@ -443,12 +454,12 @@ function LayerTogglePill({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full bg-white/90 px-3 py-1 text-sm shadow transition ${
-        active ? 'text-slate-900 opacity-100' : 'text-slate-600 opacity-65'
+      className={`rounded-full border border-theme bg-surface/95 px-3 py-1.5 text-xs font-black shadow-lg backdrop-blur-md transition ${
+        active ? 'text-primary opacity-100' : 'text-muted opacity-75 hover:text-primary'
       }`}
     >
       <span className="inline-flex items-center gap-2">
-        <span>{icon}</span>
+        {icon ? <span>{icon}</span> : null}
         <span>{label}</span>
         <span className={active ? 'opacity-100' : 'opacity-0'}>✓</span>
       </span>
@@ -456,23 +467,32 @@ function LayerTogglePill({
   );
 }
 
+const BASE_MAP_OPTIONS: Array<{ value: MapStyleValue; label: string }> = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'satellite', label: 'Satellite' },
+  { value: 'night', label: 'Night' },
+];
+
 interface MapViewProps {
   sensors: MapSensor[];
   mapStyle?: MapStyleValue;
   children: React.ReactNode;
   className?: string;
   mapActionHref?: string | null;
+  showStyleControl?: boolean;
 }
 
 export function MapView({
   sensors,
-  mapStyle = 'dark',
+  mapStyle = 'night',
   children,
   className = '',
   mapActionHref = null,
+  showStyleControl = false,
 }: MapViewProps) {
   const pathname = usePathname();
   const [isMapReady, setIsMapReady] = useState(false);
+  const [activeMapStyle, setActiveMapStyle] = useState<MapStyleValue>(mapStyle);
   const [showStations, setShowStations] = useState(true);
   const [showHeatMap, setShowHeatMap] = useState(true);
   const [showFires, setShowFires] = useState(false);
@@ -481,8 +501,12 @@ export function MapView({
   const [latestSensors, setLatestSensors] = useState<LatestSensor[]>([]);
   const [windData, setWindData] = useState<VelocityRecord[] | null>(null);
 
-  const tiles = TILE_LAYERS[mapStyle];
-  const mapInstanceKey = useMemo(() => `${pathname}:${mapStyle}`, [pathname, mapStyle]);
+  useEffect(() => {
+    setActiveMapStyle(mapStyle);
+  }, [mapStyle]);
+
+  const tiles = TILE_LAYERS[activeMapStyle];
+  const mapInstanceKey = useMemo(() => `${pathname}:${activeMapStyle}`, [pathname, activeMapStyle]);
 
   const heatMapPoints = useMemo<Array<[number, number, number]>>(() => {
     if (latestSensors.length > 0) {
@@ -585,7 +609,7 @@ export function MapView({
 
   const mapContent = (
     <div
-      className={`relative h-full w-full overflow-hidden bg-[#05090f] rounded-b-xl ${className}`}
+      className={`relative h-full w-full overflow-hidden bg-[#05090f] ${className}`}
       role="application"
       aria-label="Air quality map"
     >
@@ -601,7 +625,7 @@ export function MapView({
           style={{ height: '100%', width: '100%', zIndex: 1, position: 'relative' }}
         >
           <TileLayer attribution={tiles.attribution} url={tiles.url} className={tiles.className} />
-          {mapStyle === 'dark' ? (
+          {activeMapStyle === 'dark' || activeMapStyle === 'night' ? (
             <TileLayer
               attribution={tiles.attribution}
               url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
@@ -641,20 +665,39 @@ export function MapView({
         </div>
 
         <div className="pointer-events-auto absolute right-4 top-4 flex flex-col items-end gap-2">
+          {showStyleControl ? (
+            <div className="flex rounded-full border border-theme bg-surface/95 p-1 shadow-lg backdrop-blur-md">
+              {BASE_MAP_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setActiveMapStyle(option.value)}
+                  className={`h-8 rounded-full px-3 text-xs font-black transition ${
+                    activeMapStyle === option.value
+                      ? 'bg-[#9fe870] text-[#163300]'
+                      : 'text-secondary hover:bg-[var(--surface-muted)] hover:text-primary'
+                  }`}
+                  aria-pressed={activeMapStyle === option.value}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
           <LayerTogglePill
-            icon="📍"
+            icon=""
             label="Air quality stations"
             active={showStations}
             onClick={toggleStations}
           />
           <LayerTogglePill
-            icon="🔥"
+            icon=""
             label="Fires"
             active={showFires}
             onClick={() => setShowFires((current) => !current)}
           />
           <LayerTogglePill
-            icon="💨"
+            icon=""
             label="Wind"
             active={showWind}
             onClick={() => setShowWind((current) => !current)}

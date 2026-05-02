@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import Cookies from 'js-cookie';
 import Navigation from '@/components/Navigation';
 import { airQualityAPI, authAPI, weatherAPI, type AirQualityData } from '@/lib/api';
-import { useSensorsOnMap } from '@/hooks/useSensorsOnMap';
+import { useSensorsOnMap, type MapSensor } from '@/hooks/useSensorsOnMap';
 
 const Globe = dynamic(
   () => import('react-globe.gl').then((mod) => {
@@ -20,6 +20,26 @@ const Globe = dynamic(
   { ssr: false }
 );
 
+const SensorDetailPanel = dynamic(
+  () => import('@/components/map/SensorDetailPanel').then((mod) => mod.SensorDetailPanel),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-48 items-center justify-center rounded-[30px] border border-theme bg-surface">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-theme border-t-green-400" />
+      </div>
+    ),
+  }
+);
+
+const AQI_LEGEND = [
+  { color: '#00e400', label: 'Good', range: '0-50' },
+  { color: '#ffff00', label: 'Moderate', range: '51-100' },
+  { color: '#ff7e00', label: 'Unhealthy', range: '101-150' },
+  { color: '#ff0000', label: 'Dangerous', range: '151-200' },
+  { color: '#8f3f97', label: 'Very dangerous', range: '201+' },
+];
+
 function getAqiColor(aqi: number) {
   if (aqi <= 50) return '#00e400';
   if (aqi <= 100) return '#ffff00';
@@ -29,9 +49,72 @@ function getAqiColor(aqi: number) {
   return '#7e0023';
 }
 
+function pointToMapSensor(point: any): MapSensor {
+  return {
+    id: String(point.id),
+    lat: Number(point.lat),
+    lng: Number(point.lng),
+    aqi: Number(point.aqi ?? 0),
+    isPurchased: point.source === 'purchased' || Boolean(point.isPurchased),
+    isDemo: point.source === 'fallback',
+    name: point.name || point.city || point.site || 'Air station',
+    site: point.site,
+    city: point.city,
+    state: point.state,
+    country: point.country,
+    device_id: point.device_id,
+    device_name: point.device_name,
+    label: point.label,
+    description: point.description,
+    timestamp: point.timestamp ?? undefined,
+    parameters: point.parameters ?? {
+      pm1: point.pm1 ?? 0,
+      pm25: point.pm25 ?? point.aqi ?? 0,
+      pm10: point.pm10 ?? 0,
+      co2: point.co2 ?? 0,
+      co: point.co ?? 0,
+      voc: point.voc ?? 0,
+      o3: point.o3 ?? 0,
+      no2: point.no2 ?? 0,
+      ch2o: point.ch2o ?? 0,
+      temp: point.temp ?? 0,
+      hum: point.hum ?? 0,
+    },
+    airQualityData: point.airQualityData,
+  };
+}
+
+function GlobeSidebar({
+  selectedSensor,
+  onClearSelection,
+}: {
+  selectedSensor: MapSensor | null;
+  onClearSelection: () => void;
+}) {
+  if (!selectedSensor) return null;
+
+  return (
+    <aside className="hidden h-full min-w-0 border-r border-theme bg-surface lg:flex lg:w-[390px] lg:flex-col xl:w-[420px]">
+      <div className="flex h-14 shrink-0 items-center justify-between border-b border-theme px-4">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-black text-primary">Station details</p>
+          <p className="truncate text-xs text-muted">{selectedSensor.name || selectedSensor.site || 'Air station'}</p>
+        </div>
+        <button type="button" onClick={onClearSelection} className="wise-btn-secondary h-9 px-3 text-xs">
+          Close
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
+        <SensorDetailPanel sensor={selectedSensor} />
+      </div>
+    </aside>
+  );
+}
+
 export default function Map3DPage() {
   const [user, setUser] = useState<any>(null);
   const [airQualityPoints, setAirQualityPoints] = useState<any[]>([]);
+  const [selectedSensor, setSelectedSensor] = useState<MapSensor | null>(null);
   const globeRef = useRef<any>(null);
   const globeContainerRef = useRef<HTMLDivElement | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -75,7 +158,9 @@ export default function Map3DPage() {
               lat,
               lng,
               aqi,
-              city: item.sensor_data?.site || item.city || 'Air station',
+              name: item.sensor_data?.site || item.city || 'Air station',
+              city: item.city,
+              state: item.state,
               country: item.country || 'KZ',
               pm1: pollution?.pm1 ?? 0,
               pm25: pollution?.pm25 ?? aqi,
@@ -91,6 +176,7 @@ export default function Map3DPage() {
               color: getAqiColor(aqi),
               source: 'air-quality',
               timestamp: pollution?.ts ?? null,
+              airQualityData: item,
             };
           })
           .filter((item): item is NonNullable<typeof item> => item !== null);
@@ -127,43 +213,40 @@ export default function Map3DPage() {
     };
   }, []);
 
-  const points = useMemo(
-    () => {
-      const sensorPoints = sensors
-        .filter((sensor) => Number.isFinite(sensor.lat) && Number.isFinite(sensor.lng))
-        .map((sensor) => {
-          const params = sensor.parameters ?? {};
-          return {
-            id: sensor.id,
-            lat: sensor.lat,
-            lng: sensor.lng,
-            aqi: sensor.aqi,
-            city: sensor.name || sensor.site || sensor.city || 'Sensor',
-            country: sensor.country || 'KZ',
-            pm1: params.pm1 ?? 0,
-            pm25: params.pm25 ?? sensor.aqi ?? 0,
-            pm10: params.pm10 ?? 0,
-            co2: params.co2 ?? 0,
-            co: params.co ?? 0,
-            voc: params.voc ?? 0,
-            o3: params.o3 ?? 0,
-            no2: params.no2 ?? 0,
-            ch2o: params.ch2o ?? 0,
-            temp: params.temp ?? 0,
-            hum: params.hum ?? 0,
-            color: getAqiColor(sensor.aqi),
-            source: sensor.isPurchased ? 'purchased' : 'sensor',
-            timestamp: sensor.timestamp ?? null,
-          };
-        });
+  const points = useMemo(() => {
+    const sensorPoints = sensors
+      .filter((sensor) => Number.isFinite(sensor.lat) && Number.isFinite(sensor.lng))
+      .map((sensor) => {
+        const params = sensor.parameters ?? {};
+        return {
+          ...sensor,
+          lat: sensor.lat,
+          lng: sensor.lng,
+          aqi: sensor.aqi,
+          city: sensor.name || sensor.site || sensor.city || 'Sensor',
+          country: sensor.country || 'KZ',
+          pm1: params.pm1 ?? 0,
+          pm25: params.pm25 ?? sensor.aqi ?? 0,
+          pm10: params.pm10 ?? 0,
+          co2: params.co2 ?? 0,
+          co: params.co ?? 0,
+          voc: params.voc ?? 0,
+          o3: params.o3 ?? 0,
+          no2: params.no2 ?? 0,
+          ch2o: params.ch2o ?? 0,
+          temp: params.temp ?? 0,
+          hum: params.hum ?? 0,
+          color: getAqiColor(sensor.aqi),
+          source: sensor.isPurchased ? 'purchased' : 'sensor',
+          timestamp: sensor.timestamp ?? null,
+        };
+      });
 
-      const mergedById = new Map<string, any>();
-      airQualityPoints.forEach((point) => mergedById.set(point.id, point));
-      sensorPoints.forEach((point) => mergedById.set(point.id, point));
-      return Array.from(mergedById.values());
-    },
-    [airQualityPoints, sensors]
-  );
+    const mergedById = new Map<string, any>();
+    airQualityPoints.forEach((point) => mergedById.set(point.id, point));
+    sensorPoints.forEach((point) => mergedById.set(point.id, point));
+    return Array.from(mergedById.values());
+  }, [airQualityPoints, sensors]);
 
   const globePoints = useMemo(() => {
     if (points.length > 0) {
@@ -176,6 +259,7 @@ export default function Map3DPage() {
         lat: 43.238949,
         lng: 76.889709,
         aqi: 72,
+        name: 'Almaty',
         city: 'Almaty',
         country: 'KZ',
         pm1: 18,
@@ -202,7 +286,7 @@ export default function Map3DPage() {
 
     const updateViewport = () => {
       const nextWidth = Math.max(320, Math.floor(node.clientWidth));
-      const nextHeight = Math.max(500, Math.floor(node.clientHeight));
+      const nextHeight = Math.max(420, Math.floor(node.clientHeight));
       setViewport((current) =>
         current.width === nextWidth && current.height === nextHeight
           ? current
@@ -216,154 +300,133 @@ export default function Map3DPage() {
     observer.observe(node);
 
     return () => observer.disconnect();
-  }, []);
+  }, [selectedSensor]);
 
   useEffect(() => {
     if (!globeRef.current) return;
 
-    if (globePoints.length === 0) {
-      globeRef.current.pointOfView({ lat: 43.222, lng: 76.8512, altitude: 2.1 }, 0);
-      return;
-    }
+    const preferredPoint = selectedSensor
+      ? globePoints.find((point) => String(point.id) === selectedSensor.id)
+      : globePoints.find((point) => point.source !== 'sensor' || point.id !== 'demo-tynysai-marker') || globePoints[0];
 
-    const preferredPoint =
-      globePoints.find((point) => point.source !== 'sensor' || point.id !== 'demo-tynysai-marker') ||
-      globePoints[0];
+    if (!preferredPoint) return;
+
     globeRef.current.pointOfView(
-      { lat: preferredPoint.lat, lng: preferredPoint.lng, altitude: 2.0 },
-      1200
+      { lat: preferredPoint.lat, lng: preferredPoint.lng, altitude: selectedSensor ? 1.45 : 2.0 },
+      1000
     );
-  }, [globePoints]);
+  }, [globePoints, selectedSensor]);
+
+  const closeSelectedSensor = () => setSelectedSensor(null);
 
   return (
-    <main className="min-h-screen page-shell relative overflow-hidden">
-      <div className="fixed inset-0 z-0 pointer-events-none">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#1a1a2e] to-[#0a0a0a]" />
-      </div>
-
+    <main className="flex min-h-screen flex-col overflow-hidden page-shell">
       <Navigation user={user} onLogout={() => { Cookies.remove('token'); setUser(null); }} />
 
-      <div className="relative z-10 pt-24 pb-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-6">
-            <h1 className="text-4xl md:text-5xl font-black mb-2 wise-gradient-text">
-              3D Map
-            </h1>
-            <p className="text-muted">
-              Globe view using the same live sensor set as the dashboard map.
-            </p>
-          </div>
+      <div className={`grid h-[calc(100dvh-4rem)] min-h-[520px] grid-cols-1 overflow-hidden border-t border-theme ${
+        selectedSensor ? 'lg:grid-cols-[390px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]' : ''
+      }`}>
+        <GlobeSidebar selectedSensor={selectedSensor} onClearSelection={closeSelectedSensor} />
 
-          <div className="glass-strong rounded-3xl border border-green-500/30 overflow-hidden shadow-2xl">
-            <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-6 py-4 border-b border-green-500/30 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
-                <span className="text-primary font-semibold">{globePoints.length} sensors on the globe</span>
+        <section ref={globeContainerRef} className="relative min-h-0 min-w-0 overflow-hidden bg-[#05090f]">
+          {isClient && viewport.width > 0 && viewport.height > 0 ? (
+            <Globe
+              innerRef={globeRef}
+              width={viewport.width}
+              height={viewport.height}
+              globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
+              backgroundImageUrl="https://unpkg.com/three-globe/example/img/night-sky.png"
+              pointsData={globePoints}
+              pointLat="lat"
+              pointLng="lng"
+              pointAltitude={(d: any) => Math.max(0.02, Math.min(0.4, (d.aqi || 0) / 500))}
+              pointColor="color"
+              pointRadius={0.35}
+              backgroundColor="rgba(0,0,0,0)"
+              showAtmosphere
+              atmosphereColor="#9fe870"
+              atmosphereAltitude={0.14}
+              onPointClick={(point: any) => setSelectedSensor(pointToMapSensor(point))}
+              onPointHover={(point: any) => {
+                document.body.style.cursor = point ? 'pointer' : 'default';
+              }}
+              pointLabel={(d: any) => `
+                <div style="background:rgba(0,0,0,0.9);padding:10px 12px;border-radius:12px;border:1px solid ${d.color};color:#fff;font-family:system-ui;min-width:180px;">
+                  <div style="font-weight:800;color:${d.color};margin-bottom:4px;">${d.name || d.city}</div>
+                  <div style="font-size:12px;">AQI ${Math.round(d.aqi)}</div>
+                </div>
+              `}
+              enablePointerInteraction={true}
+              animateIn={true}
+              waitForGlobeReady={true}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center">
+              <div className="text-center">
+                <div className="mx-auto mb-4 h-16 w-16 animate-spin rounded-full border-4 border-green-500/20 border-t-green-500" />
+                <div className="text-lg font-semibold text-green-400">
+                  {loading ? 'Loading globe data...' : 'Preparing globe...'}
+                </div>
               </div>
-              <span className="text-muted text-xs">refresh every 60 sec</span>
             </div>
+          )}
 
-            <div
-              ref={globeContainerRef}
-              className="relative flex items-center justify-center"
-              style={{ height: '75vh', minHeight: '500px' }}
-            >
-              {isClient && viewport.width > 0 && viewport.height > 0 ? (
-                <Globe
-                  innerRef={globeRef}
-                  width={viewport.width}
-                  height={viewport.height}
-                  globeImageUrl="https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
-                  backgroundImageUrl="https://unpkg.com/three-globe/example/img/night-sky.png"
-                  pointsData={globePoints}
-                  pointLat="lat"
-                  pointLng="lng"
-                  pointAltitude={(d: any) => Math.max(0.02, Math.min(0.4, (d.aqi || 0) / 500))}
-                  pointColor="color"
-                  pointRadius={0.35}
-                  backgroundColor="rgba(0,0,0,0)"
-                  showAtmosphere
-                  atmosphereColor="#3b82f6"
-                  atmosphereAltitude={0.18}
-                  onPointHover={(point: any) => {
-                    document.body.style.cursor = point ? 'pointer' : 'default';
-                  }}
-                  pointLabel={(d: any) => `
-                    <div style="background:rgba(0,0,0,0.95);padding:16px;border-radius:12px;border:2px solid ${d.color};color:#fff;font-family:system-ui;min-width:300px;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
-                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                        <div style="font-size:18px;font-weight:800;color:${d.color}">${d.city}</div>
-                        <div style="background:${d.color};color:#000;font-weight:800;padding:4px 10px;border-radius:8px;font-size:16px;">${Math.round(d.aqi)}</div>
-                      </div>
-                      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;">
-                        <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px;text-align:center;">
-                          <div style="color:#888;font-size:10px;">PM1</div>
-                          <div style="font-weight:700;font-size:16px;">${d.pm1?.toFixed(0) ?? 0}</div>
-                          <div style="color:#666;font-size:9px;">µg/m³</div>
-                        </div>
-                        <div style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);border-radius:8px;padding:8px;text-align:center;">
-                          <div style="color:#00ff88;font-size:10px;font-weight:600;">PM2.5</div>
-                          <div style="font-weight:700;font-size:16px;">${d.pm25?.toFixed(1) ?? 0}</div>
-                          <div style="color:#666;font-size:9px;">µg/m³</div>
-                        </div>
-                        <div style="background:rgba(255,255,255,0.05);border-radius:8px;padding:8px;text-align:center;">
-                          <div style="color:#888;font-size:10px;">PM10</div>
-                          <div style="font-weight:700;font-size:16px;">${d.pm10?.toFixed(0) ?? 0}</div>
-                          <div style="color:#666;font-size:9px;">µg/m³</div>
-                        </div>
-                      </div>
-                      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;font-size:11px;">
-                        <div><span style="color:#888;">CO2</span> <span style="font-weight:600;">${d.co2?.toFixed(0) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
-                        <div><span style="color:#888;">CO</span> <span style="font-weight:600;">${d.co?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
-                        <div><span style="color:#888;">CH2O</span> <span style="font-weight:600;">${d.ch2o?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
-                        <div><span style="color:#888;">VOC</span> <span style="font-weight:600;">${d.voc?.toFixed(2) ?? 0}</span> <span style="color:#666;font-size:9px;">ppm</span></div>
-                        <div><span style="color:#888;">O3</span> <span style="font-weight:600;">${d.o3?.toFixed(1) ?? 0}</span> <span style="color:#666;font-size:9px;">ppb</span></div>
-                        <div><span style="color:#888;">NO2</span> <span style="font-weight:600;">${d.no2?.toFixed(1) ?? 0}</span> <span style="color:#666;font-size:9px;">ppb</span></div>
-                      </div>
-                      <div style="border-top:1px solid rgba(255,255,255,0.1);padding-top:8px;margin-top:10px;display:flex;justify-content:space-around;font-size:12px;">
-                        <div><span style="color:#f59e0b;">Temp</span> ${d.temp?.toFixed(1) ?? '—'}°C</div>
-                        <div><span style="color:#3b82f6;">Humidity</span> ${d.hum?.toFixed(0) ?? '—'}%</div>
-                      </div>
-                    </div>
-                  `}
-                  enablePointerInteraction={true}
-                  animateIn={true}
-                  waitForGlobeReady={true}
-                />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500/20 border-t-green-500 mx-auto mb-4" />
-                    <div className="text-green-400 text-lg font-semibold">
-                      {loading ? 'Loading globe data...' : 'Preparing globe...'}
-                    </div>
-                  </div>
+          {!selectedSensor ? (
+            <div className="pointer-events-none absolute left-3 top-3 z-[650] max-w-[min(21rem,calc(100%-1.5rem))] rounded-2xl border border-theme bg-surface/95 p-4 shadow-xl backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#9fe870] text-lg font-black text-[#163300]">3D</div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-primary">Breez Air Quality</p>
+                  <p className="mt-1 text-xs text-secondary">{globePoints.length} stations. Select a point on the globe.</p>
                 </div>
-              )}
-              {!loading && error ? (
-                <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-full border border-theme bg-black/60 px-4 py-2 text-xs text-secondary backdrop-blur-md">
-                  {error}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="bg-gradient-to-r from-[#0f0f0f] via-[#151515] to-[#1a1a1a] px-6 py-3 border-t border-green-500/30">
-              <div className="flex flex-wrap items-center gap-4 justify-center text-xs text-muted">
-                {[
-                  { color: '#00e400', label: 'Good (0-50)' },
-                  { color: '#ffff00', label: 'Moderate (51-100)' },
-                  { color: '#ff7e00', label: 'Unhealthy (101-150)' },
-                  { color: '#ff0000', label: 'Dangerous (151-200)' },
-                  { color: '#8f3f97', label: 'Very dangerous (201+)' },
-                ].map((item) => (
-                  <div key={item.color} className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span>{item.label}</span>
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                {AQI_LEGEND.slice(0, 4).map((item) => (
+                  <div key={item.label} className="flex min-w-0 items-center gap-2 text-[11px] font-bold text-muted">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.color }} />
+                    <span className="truncate">{item.range}</span>
                   </div>
                 ))}
               </div>
             </div>
+          ) : null}
+
+          {!loading && error ? (
+            <div className="pointer-events-none absolute bottom-14 left-1/2 z-[650] -translate-x-1/2 rounded-full border border-theme bg-black/60 px-4 py-2 text-xs text-secondary backdrop-blur-md">
+              {error}
+            </div>
+          ) : null}
+
+          <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-[600]">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
+              {AQI_LEGEND.map((item) => (
+                <div
+                  key={item.color}
+                  className="px-2 py-2 text-center text-[10px] font-semibold uppercase tracking-wide text-primary sm:text-[11px]"
+                  style={{ backgroundColor: item.color }}
+                >
+                  {item.label} ({item.range})
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+
+          {selectedSensor ? (
+            <div className="absolute inset-x-0 bottom-0 z-[760] max-h-[78%] rounded-t-[28px] border border-theme bg-surface shadow-2xl lg:hidden">
+              <div className="flex h-12 items-center justify-between border-b border-theme px-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-black text-primary">{selectedSensor.name || selectedSensor.site || 'Air station'}</p>
+                </div>
+                <button type="button" onClick={closeSelectedSensor} className="wise-btn-secondary h-8 px-3 text-xs">
+                  Close
+                </button>
+              </div>
+              <div className="max-h-[calc(78dvh-3rem)] overflow-y-auto p-3">
+                <SensorDetailPanel sensor={selectedSensor} />
+              </div>
+            </div>
+          ) : null}
+        </section>
       </div>
     </main>
   );

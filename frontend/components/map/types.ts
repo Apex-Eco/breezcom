@@ -1,1 +1,1 @@
-export type MapStyleValue = 'standard' | 'dark' | 'satellite';
+export type MapStyleValue = 'standard' | 'day' | 'night' | 'dark' | 'satellite';
