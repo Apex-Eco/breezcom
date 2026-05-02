@@ -219,6 +219,53 @@ move_broken_venv_if_needed() {
   fi
 }
 
+ensure_backend_env_file() {
+  local backend_env_file="$BACKEND_DIR/.env"
+  local backend_env_example="$BACKEND_DIR/.env.example"
+
+  if [ -f "$backend_env_file" ]; then
+    return 0
+  fi
+
+  if [ -f "$backend_env_example" ]; then
+    cp "$backend_env_example" "$backend_env_file"
+    echo "✅ Created backend/.env from .env.example"
+    return 0
+  fi
+
+  {
+    echo "MONGO_URL=mongodb://localhost:27017"
+    echo "DATABASE_NAME=iqair"
+    echo "SECRET_KEY=change-me"
+    echo "ADMIN_SECRET=admin-secret"
+    echo "ADMIN_EMAIL=admin@local"
+    echo "ADMIN_NAME=Admin"
+    echo "IQAIR_API_KEY="
+    echo "WEATHERAPI_KEY="
+    echo "ENABLE_DEMO_DATA=0"
+  } > "$backend_env_file"
+  echo "✅ Created backend/.env with default values"
+}
+
+ensure_frontend_env_file() {
+  local frontend_env_file="$FRONTEND_DIR/.env"
+
+  if [ -f "$frontend_env_file" ]; then
+    return 0
+  fi
+
+  {
+    echo "NEXT_PUBLIC_API_URL=http://localhost:8000"
+    echo "NEXT_PUBLIC_API_BASE_URL=http://localhost:8000"
+  } > "$frontend_env_file"
+  echo "✅ Created frontend/.env with default values"
+}
+
+ensure_env_files() {
+  ensure_backend_env_file
+  ensure_frontend_env_file
+}
+
 echo "🚀 Breez — Dev Startup"
 echo "─────────────────────────────────"
 
@@ -226,6 +273,7 @@ echo "────────────────────────�
 [ ! -d "$BACKEND_DIR" ] && echo "❌ backend/ folder not found" && exit 1
 [ ! -d "$FRONTEND_DIR" ] && echo "❌ frontend/ folder not found" && exit 1
 echo "✅ Project structure OK"
+ensure_env_files
 
 # ── 2. Optional cleanup ───────────────────────────────────────
 echo ""
